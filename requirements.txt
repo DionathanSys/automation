@@ -1,0 +1,7 @@
+playwright==1.53.0
+SQLAlchemy==2.0.41
+mysql-connector-python==9.3.0
+python-dotenv==1.1.0
+APScheduler==3.11.0
+fastapi==0.116.1
+uvicorn==0.35.0
