@@ -59,7 +59,7 @@ class SiteSascarConfig:
     usuario: str = os.getenv("SITE_SASCAR_USUARIO", "")
     login: str = os.getenv("SITE_SASCAR_LOGIN", "")
     password: str = os.getenv("SITE_SASCAR_PASSWORD", "")
-    filial_veiculo: str = os.getenv("SITE_SASCAR_FILIAL_VEICULO", "MAGNABOSCO - CHAPECÓ")
+    filial_veiculo: str = os.getenv("SITE_SASCAR_FILIAL_VEICULO", "MATRIZ")
     window_hours: int = _get_int("SASCAR_WINDOW_HOURS", 24)
 
 

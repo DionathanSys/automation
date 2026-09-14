@@ -130,7 +130,7 @@ class _SascarSession:
             headless=settings.app.headless,
             slow_mo=settings.app.slow_mo_ms,
         )
-        self._context = self._browser.new_context()
+        self._context = self._browser.new_context(locale="pt-BR")
         self._context.set_default_timeout(settings.app.default_timeout_ms)
         site_class = SITE_REGISTRY["sascar"]
         self.site = site_class(self._context)

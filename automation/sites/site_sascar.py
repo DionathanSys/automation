@@ -25,7 +25,6 @@ class SiteSascar:
     RADIO_TODAY = "controller:periodo:0"
     RADIO_DATE_RANGE = "controller:periodo:4"
     RADIO_POPUP_VIEW = "controller:formaVisualizacao:1"
-    FILIAL_SELECT = "#controller\\:comboFilialVeiculo"
     VEHICLE_SELECT = "#controller\\:comboVeiculo"
     DATE_START_INPUT = "#controller\\:dataInicioFiltroMenu"
     DATE_END_INPUT = "#controller\\:dataFinalFiltroMenu"
@@ -67,7 +66,7 @@ class SiteSascar:
 
     def list_fleet_vehicles(self) -> list[dict[str, Any]]:
         self._open_controller()
-        self._select_daily_movement_and_filial()
+        self._select_daily_movement()
         return self._read_vehicle_options()
 
     def generate_daily_movement(
@@ -77,7 +76,7 @@ class SiteSascar:
         fim: datetime,
     ) -> list[dict[str, Any]]:
         self._open_controller()
-        self._select_daily_movement_and_filial()
+        self._select_daily_movement()
         self._set_period_and_view(inicio, fim)
         self.page.select_option(self.VEHICLE_SELECT, value=self._find_vehicle_option(vehicle["plate"]))
         self.page.wait_for_timeout(2000)
@@ -91,7 +90,7 @@ class SiteSascar:
 
     def generate_traveled_distance(self) -> list[dict[str, Any]]:
         self._open_controller()
-        self._select_traveled_distance_and_filial()
+        self._select_traveled_distance()
         self.page.click(f"label[for='{self.RADIO_TODAY}']")
         self.page.click(f"label[for='{self.RADIO_POPUP_VIEW}']")
         self.page.wait_for_timeout(800)
@@ -114,33 +113,13 @@ class SiteSascar:
         self.page.wait_for_timeout(3000)
         self._close_popups()
 
-    def _select_daily_movement_and_filial(self) -> None:
+    def _select_daily_movement(self) -> None:
         self.page.click(f"label[for='{self.RADIO_DAILY_MOVEMENT}']")
-        self._wait_current_combo_stable()
-        try:
-            with self.page.expect_response(
-                lambda response: response.request.method == "POST"
-                and response.url.endswith(self.CONTROLLER_URL),
-                timeout=30000,
-            ):
-                self.page.select_option(self.FILIAL_SELECT, label=settings.sascar.filial_veiculo)
-        except PlaywrightTimeoutError:
-            logger.warning("Resposta AJAX da selecao de filial nao foi observada.")
         self._wait_current_combo_stable()
         self.page.wait_for_timeout(500)
 
-    def _select_traveled_distance_and_filial(self) -> None:
+    def _select_traveled_distance(self) -> None:
         self.page.click(f"label[for='{self.RADIO_TOTAL_DISTANCE}']")
-        self._wait_current_combo_stable()
-        try:
-            with self.page.expect_response(
-                lambda response: response.request.method == "POST"
-                and response.url.endswith(self.CONTROLLER_URL),
-                timeout=30000,
-            ):
-                self.page.select_option(self.FILIAL_SELECT, label=settings.sascar.filial_veiculo)
-        except PlaywrightTimeoutError:
-            logger.warning("Resposta AJAX da selecao de filial nao foi observada.")
         self._wait_current_combo_stable()
         self.page.wait_for_timeout(500)
 
@@ -228,7 +207,7 @@ class SiteSascar:
         for option in options:
             if option["plate"].strip() == plate:
                 return option["id"]
-        raise RuntimeError(f"Veiculo {plate} nao encontrado no combo da filial selecionada.")
+        raise RuntimeError(f"Veiculo {plate} nao encontrado no combo de veiculos disponiveis.")
 
     def _set_period_and_view(self, inicio: datetime, fim: datetime) -> None:
         self.page.click(f"label[for='{self.RADIO_DATE_RANGE}']")

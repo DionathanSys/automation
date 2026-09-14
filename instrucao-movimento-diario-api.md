@@ -7,7 +7,7 @@ O scraper (aplicacao WebScraping) le o relatorio por veiculo e envia os dados ne
 ## 1. Origem dos dados
 
 Portal: https://telemetria.sascar.com.br/telemetria/pages/controller.jsf
-Relatorio: "Daily movement" (Movimento Diario), filial de veiculos = Chapeco.
+Relatorio: "Daily movement" (Movimento Diario), empresa de veiculos = Matriz.
 
 ### Periodo: ultimas 4 horas (fuso -3)
 
@@ -92,7 +92,7 @@ Enviar **uma requisicao por veiculo e por dia** (uma placa e um dia por chamada)
 {
   "lote_id": "sascar-movimento-diario-20260811-001",
   "veiculo": "RLE7C85",
-  "filial": "MAGNABOSCO - CHAPECÓ",
+  "filial": "MATRIZ",
   "inicio": "2026-08-11 15:47:00",
   "fim": "2026-08-11 19:47:00",
   "dia": "2026-08-11",
@@ -114,7 +114,7 @@ Enviar **uma requisicao por veiculo e por dia** (uma placa e um dia por chamada)
 |-------|------|-------------|-----------|
 | `lote_id` | string | sim | Identificador do lote de scraping (data/hora da extracao). |
 | `veiculo` | string | sim | Placa do veiculo. |
-| `filial` | string | sim | Filial de veiculos selecionada no relatorio. |
+| `filial` | string | sim | Empresa de veiculos usada no relatorio. Atualmente, `MATRIZ`. |
 | `inicio` | string | sim | Inicio da janela consultada no formato `YYYY-MM-DD HH:MM:SS`, fuso -3. |
 | `fim` | string | sim | Fim da janela consultada no formato `YYYY-MM-DD HH:MM:SS`, fuso -3. |
 | `dia` | string | sim | Data da linha do relatorio no formato `YYYY-MM-DD`. |
@@ -220,4 +220,4 @@ curl -X POST "https://seu-dominio.com/api/integracoes/movimento-diario" \
 - O relatorio e aberto em uma janela popup ("Pop-up" em Forma de Visualizacao).
 - A tabela tem o cabecalho: `Date | Km | Time | 0 | 01 | 02 | ... | 23` (as 24 colunas de hora sempre aparecem, mas apenas as horas dentro da janela tem dados reais).
 - Cada coluna de hora contem 6 elementos `<div class="minuto_0|1|2">`.
-- E necessario gerar um relatorio por veiculo da filial Chapeco (lista do campo Veiculo apos selecionar a filial).
+- Os veiculos da empresa Matriz ficam disponiveis diretamente no campo Veiculo; nao e necessario selecionar uma filial de veiculo.

@@ -266,7 +266,7 @@ def _test_login(site_name: str) -> None:
             headless=settings.app.headless,
             slow_mo=settings.app.slow_mo_ms,
         )
-        context = browser.new_context()
+        context = browser.new_context(locale="pt-BR")
         context.set_default_timeout(settings.app.default_timeout_ms)
 
         site_class = SITE_REGISTRY[site_name]
@@ -291,7 +291,7 @@ def _test_monitoring_trips(site_name: str) -> None:
             headless=settings.app.headless,
             slow_mo=settings.app.slow_mo_ms,
         )
-        context = browser.new_context()
+        context = browser.new_context(locale="pt-BR")
         context.set_default_timeout(settings.app.default_timeout_ms)
 
         site_class = SITE_REGISTRY[site_name]
@@ -322,7 +322,7 @@ def _test_daily_trip_summary(site_name: str) -> None:
             headless=settings.app.headless,
             slow_mo=settings.app.slow_mo_ms,
         )
-        context = browser.new_context()
+        context = browser.new_context(locale="pt-BR")
         context.set_default_timeout(settings.app.default_timeout_ms)
 
         site_class = SITE_REGISTRY[site_name]
