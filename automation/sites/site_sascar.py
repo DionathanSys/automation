@@ -30,7 +30,10 @@ class SiteSascar:
     DATE_END_INPUT = "#controller\\:dataFinalFiltroMenu"
     VIEW_REPORT_BUTTON = "#controller\\:btnGeraRelatorio"
     REPORT_TABLE = "table.tabela_relatorio"
-    TOTAL_DISTANCE_TABLE = "table:has(tr:first-child:has-text('Final Odometer'))"
+    TOTAL_DISTANCE_TABLE = (
+        "table:has(tr:first-child:has-text('Hodômetro Final')), "
+        "table:has(tr:first-child:has-text('Final Odometer'))"
+    )
     MINUTOS_POR_HORA = 6
 
     def __init__(self, context) -> None:
