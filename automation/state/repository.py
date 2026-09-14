@@ -6,7 +6,7 @@ import json
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
 
 from automation.models import ReportCheckpoint
 
@@ -117,6 +117,25 @@ class SQLiteStateRepository:
 
     def mark_closed_trips_failed(self, trip_numbers: list[str], lote_id: str, error_message: str) -> None:
         self._update_closed_trip_delivery(trip_numbers, lote_id, "failed", error_message)
+
+    def list_pending_closed_trips(self) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload
+                FROM closed_trips
+                WHERE api_status IN ('pending', 'failed')
+                ORDER BY competence_date, trip_number
+                """
+            ).fetchall()
+
+        pending: list[dict[str, Any]] = []
+        for row in rows:
+            payload = json.loads(row[0])
+            if not isinstance(payload, dict):
+                raise RuntimeError("Payload armazenado de viagem encerrada invalido.")
+            pending.append(payload)
+        return pending
 
     def missing_closed_trip_numbers(self, trip_numbers: list[str]) -> list[str]:
         if not trip_numbers:

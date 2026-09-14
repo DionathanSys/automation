@@ -1,6 +1,7 @@
 from datetime import date, datetime
 import tempfile
 import unittest
+from unittest.mock import Mock
 
 from automation.services.site_alpha_sync import SiteAlphaSyncService
 from automation.state import SQLiteStateRepository
@@ -136,6 +137,34 @@ class ClosedTripStateTest(unittest.TestCase):
         changed_trip = {**self.trip, "cliente": "Cliente atualizado"}
         self.assertEqual([changed_trip], self.repository.record_closed_trips([changed_trip]))
         self.assertEqual("pending", self.repository.list_closed_trip_statuses()[0]["status_api"])
+
+    def test_retries_pending_trip_after_checkpoint_has_advanced(self) -> None:
+        self.repository.record_closed_trips([self.trip])
+        self.repository.save_checkpoint("closed_trips", "14/09/2026", 999)
+        push_client = Mock()
+        service = SiteAlphaSyncService(self.repository, push_client)
+
+        payloads = service._retry_pending_closed_trips(dry_run=False)
+
+        self.assertEqual([self.trip], payloads)
+        push_client.push_closed_trips.assert_called_once()
+        status = self.repository.list_closed_trip_statuses()[0]
+        self.assertEqual("accepted", status["status_api"])
+        self.assertEqual(1, status["tentativas"])
+
+    def test_failed_retry_remains_failed_with_attempt_details(self) -> None:
+        self.repository.record_closed_trips([self.trip])
+        push_client = Mock()
+        push_client.push_closed_trips.side_effect = RuntimeError("HTTP 503")
+        service = SiteAlphaSyncService(self.repository, push_client)
+
+        with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+            service._retry_pending_closed_trips(dry_run=False)
+
+        status = self.repository.list_closed_trip_statuses()[0]
+        self.assertEqual("failed", status["status_api"])
+        self.assertEqual(1, status["tentativas"])
+        self.assertEqual("HTTP 503", status["ultimo_erro"])
 
 
 if __name__ == "__main__":

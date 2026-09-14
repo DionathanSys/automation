@@ -10,6 +10,10 @@ from uuid import uuid4
 from urllib import error, parse, request
 
 from automation.config import settings
+from automation.utils.logger import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class AppPushClient:
@@ -53,6 +57,12 @@ class AppPushClient:
             with request.urlopen(req, timeout=self.timeout_seconds) as response:
                 if response.status < 200 or response.status >= 300:
                     raise RuntimeError(f"Falha ao enviar payload para {url}: HTTP {response.status}")
+                logger.info(
+                    "Payload enviado para %s: HTTP %s request_id=%s",
+                    url,
+                    response.status,
+                    headers.get("X-Request-Id"),
+                )
         except error.HTTPError as exc:
             response_body = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Falha ao enviar payload para {url}: HTTP {exc.code} {response_body}") from exc

@@ -52,10 +52,14 @@ class SiteAlphaSyncService:
         return payloads
 
     def sync_closed_trips(self, dry_run: bool = False) -> list[dict[str, Any]]:
+        payloads = self._retry_pending_closed_trips(dry_run)
         cutoff_date = self._parse_cutoff_date()
         checkpoint = self.state_repository.get_checkpoint("closed_trips")
         current_date = self._parse_date(checkpoint.checkpoint_date) if checkpoint else cutoff_date
-        return self._sync_closed_trips(current_date, self._today(), dry_run=dry_run, save_checkpoint=True)
+        payloads.extend(
+            self._sync_closed_trips(current_date, self._today(), dry_run=dry_run, save_checkpoint=True)
+        )
+        return payloads
 
     def sync_closed_trips_period(
         self,
@@ -100,16 +104,8 @@ class SiteAlphaSyncService:
                 payload_rows = [self._build_closed_trip_payload(report_date, row) for row in rows]
                 pending_payloads = payload_rows if dry_run else self.state_repository.record_closed_trips(payload_rows)
                 for batch in self._batch(pending_payloads, settings.receiver.closed_trips_batch_size):
-                    lote_id = self._build_lote_id(report_date, batch)
                     all_payloads.extend(batch)
-                    if not dry_run:
-                        trip_numbers = [str(payload["numero_viagem"]) for payload in batch]
-                        try:
-                            self.push_client.push_closed_trips(lote_id, batch)
-                        except Exception as exc:
-                            self.state_repository.mark_closed_trips_failed(trip_numbers, lote_id, str(exc))
-                            raise
-                        self.state_repository.mark_closed_trips_accepted(trip_numbers, lote_id)
+                    self._send_closed_trip_batch(report_date, batch, dry_run)
 
                 if save_checkpoint and not dry_run:
                     self.state_repository.save_checkpoint(
@@ -126,6 +122,53 @@ class SiteAlphaSyncService:
                 return all_payloads
 
         return all_payloads
+
+    def _retry_pending_closed_trips(self, dry_run: bool) -> list[dict[str, Any]]:
+        pending = self.state_repository.list_pending_closed_trips()
+        if not pending:
+            return []
+
+        payloads: list[dict[str, Any]] = []
+        current_competence_date: str | None = None
+        current_batch: list[dict[str, Any]] = []
+
+        for payload in pending:
+            competence_date = str(payload["data_competencia"])
+            if current_competence_date is not None and current_competence_date != competence_date:
+                for batch in self._batch(current_batch, settings.receiver.closed_trips_batch_size):
+                    payloads.extend(batch)
+                    report_date = datetime.strptime(current_competence_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+                    self._send_closed_trip_batch(report_date, batch, dry_run)
+                current_batch = []
+            current_competence_date = competence_date
+            current_batch.append(payload)
+
+        if current_competence_date is not None:
+            for batch in self._batch(current_batch, settings.receiver.closed_trips_batch_size):
+                payloads.extend(batch)
+                report_date = datetime.strptime(current_competence_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+                self._send_closed_trip_batch(report_date, batch, dry_run)
+
+        logger.info("Reenvio de viagens pendentes concluiu com %s registros.", len(payloads))
+        return payloads
+
+    def _send_closed_trip_batch(
+        self,
+        report_date: str,
+        batch: list[dict[str, Any]],
+        dry_run: bool,
+    ) -> None:
+        lote_id = self._build_lote_id(report_date, batch)
+        if dry_run:
+            return
+
+        trip_numbers = [str(payload["numero_viagem"]) for payload in batch]
+        try:
+            self.push_client.push_closed_trips(lote_id, batch)
+        except Exception as exc:
+            self.state_repository.mark_closed_trips_failed(trip_numbers, lote_id, str(exc))
+            raise
+        self.state_repository.mark_closed_trips_accepted(trip_numbers, lote_id)
 
     def audit_closed_trips(self, start_date: date, end_date: date) -> list[dict[str, str]]:
         if end_date < start_date:
