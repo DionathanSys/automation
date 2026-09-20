@@ -6,3 +6,4 @@ APScheduler==3.11.0
 fastapi==0.116.1
 uvicorn==0.35.0
 dramatiq[redis]==1.17.0
+alembic==1.16.4

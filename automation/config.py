@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
+from sqlalchemy import URL
 
 
 load_dotenv()
@@ -40,17 +41,21 @@ class MySQLConfig:
 
     @property
     def sqlalchemy_url(self) -> str:
-        return (
-            f"mysql+mysqlconnector://{self.user}:{self.password}"
-            f"@{self.host}:{self.port}/{self.database}"
-        )
+        return URL.create(
+            "mysql+mysqlconnector",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.database,
+        ).render_as_string(hide_password=False)
 
 
 @dataclass(frozen=True)
-class SiteAlphaConfig:
-    base_url: str = os.getenv("SITE_ALPHA_BASE_URL", "https://app.softlogbrasil.com.br")
-    username: str = os.getenv("SITE_ALPHA_USERNAME", "")
-    password: str = os.getenv("SITE_ALPHA_PASSWORD", "")
+class SiteSoftlogConfig:
+    base_url: str = os.getenv("SITE_SOFTLOG_BASE_URL", "https://app.softlogbrasil.com.br")
+    username: str = os.getenv("SITE_SOFTLOG_USERNAME", "")
+    password: str = os.getenv("SITE_SOFTLOG_PASSWORD", "")
 
 
 @dataclass(frozen=True)
@@ -141,7 +146,7 @@ class ReceiverConfig:
 class Settings:
     app: AppConfig = AppConfig()
     mysql: MySQLConfig = MySQLConfig()
-    site_alpha: SiteAlphaConfig = SiteAlphaConfig()
+    site_softlog: SiteSoftlogConfig = SiteSoftlogConfig()
     sascar: SiteSascarConfig = SiteSascarConfig()
     monitoring_trips: MonitoringTripsConfig = MonitoringTripsConfig()
     daily_trip_summary: DailyTripSummaryConfig = DailyTripSummaryConfig()

@@ -118,9 +118,9 @@ SLOW_MO_MS=0
 DEFAULT_TIMEOUT_MS=30000
 TIMEZONE=America/Sao_Paulo
 
-SITE_ALPHA_BASE_URL=https://app.softlogbrasil.com.br
-SITE_ALPHA_USERNAME=USUARIO_SOFTLOG
-SITE_ALPHA_PASSWORD=SENHA_SOFTLOG
+SITE_SOFTLOG_BASE_URL=https://app.softlogbrasil.com.br
+SITE_SOFTLOG_USERNAME=USUARIO_SOFTLOG
+SITE_SOFTLOG_PASSWORD=SENHA_SOFTLOG
 
 SITE_SASCAR_BASE_URL=https://telemetria.sascar.com.br
 SITE_SASCAR_USUARIO=USUARIO_SASCAR
@@ -146,6 +146,12 @@ CLOSED_TRIPS_BATCH_SIZE=100
 # O cron ja controla os intervalos. Mantenha estes valores desativados.
 MONITORING_TRIPS_POLL_ENABLED=false
 DAILY_TRIP_SUMMARY_POLL_ENABLED=false
+```
+
+Inicialize o banco operacional depois de configurar o `.env`:
+
+```bash
+.venv/bin/python runner.py --init-automation-db
 ```
 
 O valor de `RECEIVER_WEBHOOK_SECRET` deve ser exatamente igual ao segredo

@@ -10,6 +10,7 @@ from automation.api import run_api
 from automation.config import settings
 from automation.db.automation_repository import AutomationRepository
 from automation.db.connection import create_mysql_engine
+from automation.db.migrations import upgrade_database
 from automation.db.repository import MySQLRepository
 from automation.jobs.interval import register_interval_job
 from automation.jobs.registry import JOB_REGISTRY
@@ -164,6 +165,7 @@ def main() -> int:
 
     if args.init_automation_db:
         automation_repository = AutomationRepository(create_mysql_engine())
+        upgrade_database()
         automation_repository.ensure_schema()
         automation_repository.ensure_configured_client()
         print("Banco operacional da automacao inicializado.")

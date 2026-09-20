@@ -19,7 +19,7 @@ class AutomationRepositoryTest(unittest.TestCase):
     def setUp(self) -> None:
         self.engine = create_engine("sqlite:///:memory:")
         self.repository = AutomationRepository(self.engine)
-        self.repository.ensure_schema()
+        self.repository.create_schema_for_tests()
         self.client = {
             "id": new_id(),
             "code": "test-client",
@@ -107,7 +107,7 @@ class HmacTest(unittest.TestCase):
     def test_canonical_signature_and_nonce_replay(self) -> None:
         engine = create_engine("sqlite:///:memory:")
         repository = AutomationRepository(engine)
-        repository.ensure_schema()
+        repository.create_schema_for_tests()
         now = utc_now()
         with engine.begin() as connection:
             connection.execute(
@@ -185,7 +185,7 @@ class WebhookTest(unittest.TestCase):
     def test_delivers_signed_event_and_records_attempt(self) -> None:
         engine = create_engine("sqlite:///:memory:")
         repository = AutomationRepository(engine)
-        repository.ensure_schema()
+        repository.create_schema_for_tests()
         now = utc_now()
         with engine.begin() as connection:
             connection.execute(

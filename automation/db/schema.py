@@ -1,17 +1,22 @@
 from __future__ import annotations
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, MetaData, String, Table, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, DateTime, Index, Integer, MetaData, String, Table, Text, UniqueConstraint
 
 from automation.models import ReportColumn, ReportDefinition, SQL_TYPE_MAP
 from automation.reports import REPORT_REGISTRY
 
 
-db_metadata = MetaData()
+legacy_metadata = MetaData()
+automation_metadata = MetaData()
+
+# Legacy report repositories still import db_metadata. Keep this alias while
+# preventing operational tables from being included in legacy migrations.
+db_metadata = legacy_metadata
 
 
 job_runs_table = Table(
     "job_runs",
-    db_metadata,
+    legacy_metadata,
     Column("id", String(36), primary_key=True),
     Column("site_name", String(100), nullable=False),
     Column("report_name", String(100), nullable=False),
@@ -29,7 +34,7 @@ job_runs_table = Table(
 
 clients_table = Table(
     "automation_clients",
-    db_metadata,
+    automation_metadata,
     Column("id", String(64), primary_key=True),
     Column("code", String(100), nullable=False, unique=True),
     Column("name", String(255), nullable=False),
@@ -46,7 +51,7 @@ clients_table = Table(
 
 jobs_table = Table(
     "automation_jobs",
-    db_metadata,
+    automation_metadata,
     Column("id", String(64), primary_key=True),
     Column("client_id", String(64), nullable=False),
     Column("collector", String(150), nullable=False),
@@ -80,7 +85,7 @@ jobs_table = Table(
 
 job_attempts_table = Table(
     "automation_job_attempts",
-    db_metadata,
+    automation_metadata,
     Column("id", String(64), primary_key=True),
     Column("job_id", String(64), nullable=False),
     Column("attempt_number", Integer, nullable=False),
@@ -96,7 +101,7 @@ job_attempts_table = Table(
 
 job_results_table = Table(
     "automation_job_results",
-    db_metadata,
+    automation_metadata,
     Column("id", String(64), primary_key=True),
     Column("job_id", String(64), nullable=False),
     Column("sequence", Integer, nullable=False),
@@ -110,7 +115,7 @@ job_results_table = Table(
 
 events_table = Table(
     "automation_events",
-    db_metadata,
+    automation_metadata,
     Column("event_id", String(64), primary_key=True),
     Column("job_id", String(64), nullable=False),
     Column("client_id", String(64), nullable=False),
@@ -123,7 +128,7 @@ events_table = Table(
 
 webhook_deliveries_table = Table(
     "automation_webhook_deliveries",
-    db_metadata,
+    automation_metadata,
     Column("id", String(64), primary_key=True),
     Column("event_id", String(64), nullable=False),
     Column("attempt_number", Integer, nullable=False),
@@ -138,7 +143,7 @@ webhook_deliveries_table = Table(
 
 system_state_table = Table(
     "automation_system_state",
-    db_metadata,
+    automation_metadata,
     Column("id", String(32), primary_key=True),
     Column("mode", String(30), nullable=False),
     Column("reason", String(1000)),
@@ -149,11 +154,22 @@ system_state_table = Table(
 
 nonces_table = Table(
     "automation_hmac_nonces",
-    db_metadata,
+    automation_metadata,
     Column("client_id", String(64), primary_key=True),
     Column("nonce", String(255), primary_key=True),
     Column("expires_at", DateTime, nullable=False),
 )
+
+
+Index("ix_automation_jobs_client_id", jobs_table.c.client_id)
+Index("ix_automation_jobs_status", jobs_table.c.status)
+Index("ix_automation_jobs_requested_at", jobs_table.c.requested_at)
+Index("ix_automation_job_attempts_job_id", job_attempts_table.c.job_id)
+Index("ix_automation_job_results_job_id", job_results_table.c.job_id)
+Index("ix_automation_events_job_id", events_table.c.job_id)
+Index("ix_automation_events_client_id", events_table.c.client_id)
+Index("ix_automation_webhook_deliveries_event_id", webhook_deliveries_table.c.event_id)
+Index("ix_automation_hmac_nonces_expires_at", nonces_table.c.expires_at)
 
 
 def build_report_table(metadata: MetaData, definition: ReportDefinition) -> Table:
@@ -188,4 +204,4 @@ def _build_report_column(column: ReportColumn) -> Column:
 
 
 for report_definition in REPORT_REGISTRY.values():
-    build_report_table(db_metadata, report_definition)
+    build_report_table(legacy_metadata, report_definition)

@@ -135,6 +135,7 @@ nao deve executar browsers durante uma requisicao.
 Inicialize os processos separadamente:
 
 ```bash
+# Executa alembic upgrade head e cria o cliente configurado
 python3 runner.py --init-automation-db
 python3 runner.py --serve-api
 ./run-automation-worker.sh
@@ -162,17 +163,28 @@ As chamadas `/api/v1` exigem HMAC v1 com `X-Client-ID`, `X-Timestamp`,
 `AUTOMATION_CLIENT_ID` e `AUTOMATION_CLIENT_SECRET` e criado automaticamente
 no banco operacional durante o startup da API.
 
-Os fluxos legados de envio direto para o receptor continuam disponiveis durante
-a migracao. Nao habilite os dois fluxos para a mesma coleta em producao ate que
-a importacao Laravel esteja validada.
+O schema operacional e controlado pelo Alembic. Para executar migrations
+diretamente:
+
+```bash
+alembic upgrade head
+alembic current
+```
+
+Os comandos legados continuam no codigo apenas durante a transicao. O worker e
+o scheduler novos nao devem ser executados junto com o cron legado para a mesma
+coleta.
 
 Variaveis novas no `.env`:
 
 ```env
+REDIS_URL=redis://localhost:6379/0
 MONITORING_TRIPS_POLL_ENABLED=false
 MONITORING_TRIPS_POLL_INTERVAL_SECONDS=300
 DAILY_TRIP_SUMMARY_POLL_ENABLED=false
 DAILY_TRIP_SUMMARY_POLL_INTERVAL_SECONDS=300
+CLOSED_TRIPS_POLL_ENABLED=false
+CLOSED_TRIPS_POLL_INTERVAL_SECONDS=900
 API_HOST=0.0.0.0
 API_PORT=8000
 API_KEY=

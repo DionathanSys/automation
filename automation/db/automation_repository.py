@@ -5,14 +5,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 
 from automation.config import settings
 from automation.db.schema import (
     clients_table,
-    db_metadata,
+    automation_metadata,
     events_table,
     job_attempts_table,
     job_results_table,
@@ -40,7 +40,16 @@ class AutomationRepository:
         self.engine = engine
 
     def ensure_schema(self) -> None:
-        db_metadata.create_all(self.engine)
+        available_tables = set(inspect(self.engine).get_table_names())
+        missing_tables = set(automation_metadata.tables) - available_tables
+        if missing_tables:
+            missing = ", ".join(sorted(missing_tables))
+            raise RuntimeError(
+                f"Schema operacional incompleto ({missing}). Execute: alembic upgrade head."
+            )
+
+    def create_schema_for_tests(self) -> None:
+        automation_metadata.create_all(self.engine)
 
     def ensure_configured_client(self) -> None:
         client_id = settings.automation.client_id.strip()

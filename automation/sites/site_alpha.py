@@ -12,7 +12,7 @@ from automation.sites.base import BaseHtmlTableSite
 
 class SiteAlpha(BaseHtmlTableSite):
     site_name = "site_alpha"
-    base_url = settings.site_alpha.base_url
+    base_url = settings.site_softlog.base_url
     report_selectors = {
         "financial_summary": HtmlTableSelectors(
             report_path="/reports/financial-summary",
@@ -45,12 +45,12 @@ class SiteAlpha(BaseHtmlTableSite):
         self._daily_trip_summary_report_date = self._today_date_string()
 
     def login(self) -> None:
-        username = settings.site_alpha.username.strip()
-        password = settings.site_alpha.password
+        username = settings.site_softlog.username.strip()
+        password = settings.site_softlog.password
 
         if not username or not password:
             raise ValueError(
-                "Credenciais do site_alpha nao configuradas. Preencha SITE_ALPHA_USERNAME e SITE_ALPHA_PASSWORD."
+                "Credenciais do site_softlog nao configuradas. Preencha SITE_SOFTLOG_USERNAME e SITE_SOFTLOG_PASSWORD."
             )
 
         self.page.goto(self.base_url, wait_until="domcontentloaded")
