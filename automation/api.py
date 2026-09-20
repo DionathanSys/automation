@@ -5,7 +5,7 @@ from typing import Any, Callable
 from uuid import uuid4
 
 import uvicorn
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
@@ -15,19 +15,14 @@ from automation.api_schemas import CreateJobRequest, PauseRequest, RetryJobReque
 from automation.config import settings
 from automation.db.automation_repository import AutomationRepository, new_id
 from automation.db.connection import create_mysql_engine
-from automation.db.repository import MySQLRepository
 from automation.jobs.collector_registry import COLLECTOR_REGISTRY
 from automation.jobs.service import JobService, JobServiceError
-from automation.reports import REPORT_REGISTRY
-from automation.services.collector import CollectorService
 from automation.utils.logger import get_logger
 from automation.security.hmac import HmacAuthenticationError, HmacAuthenticator
 from automation.db.schema import jobs_table
 from automation.jobs.worker import enqueue_job
 
 
-MONITORING_TRIPS_DEFINITION = REPORT_REGISTRY[("site_alpha", "monitoring_trips")]
-DAILY_TRIP_SUMMARY_DEFINITION = REPORT_REGISTRY[("site_alpha", "daily_trip_summary")]
 logger = get_logger(__name__)
 
 
@@ -36,11 +31,9 @@ def create_app(
     enqueue: Callable[[str], None] | None = None,
 ) -> FastAPI:
     engine = engine or create_mysql_engine()
-    repository = MySQLRepository(engine)
     automation_repository = AutomationRepository(engine)
     authenticator = HmacAuthenticator(automation_repository)
     job_service = JobService(automation_repository, enqueue=enqueue or enqueue_job)
-    collector = CollectorService(repository)
 
     app = FastAPI(title="Automation API", version="1.0.0")
 
@@ -292,20 +285,6 @@ def create_app(
         job_service.set_system_mode(client, "RUNNING", None)
         return {"data": automation_repository.get_system_state()}
 
-    @app.get("/api/site-alpha/monitoring-trips")
-    def list_monitoring_trips(_: None = Depends(_require_api_key)) -> list[dict[str, Any]]:
-        rows = repository.fetch_report_rows(MONITORING_TRIPS_DEFINITION, order_by="plate")
-        return [_serialize_row(row, _monitoring_trip_fields()) for row in rows]
-
-    @app.get("/api/site-alpha/daily-trip-summaries")
-    def list_daily_trip_summaries(
-        report_date: str | None = Query(default=None),
-        _: None = Depends(_require_api_key),
-    ) -> list[dict[str, Any]]:
-        filters = {"report_date": report_date or _today_date_string()}
-        rows = repository.fetch_report_rows(DAILY_TRIP_SUMMARY_DEFINITION, order_by="plate", filters=filters)
-        return [_serialize_row(row, _daily_trip_summary_fields()) for row in rows]
-
     return app
 
 
@@ -316,26 +295,6 @@ def run_api() -> None:
         host=settings.api.host,
         port=settings.api.port,
     )
-
-
-def _require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    if not settings.api.api_key:
-        return
-
-    if x_api_key != settings.api.api_key:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key")
-
-
-def _serialize_row(row: dict[str, Any], allowed_keys: set[str]) -> dict[str, Any]:
-    payload: dict[str, Any] = {}
-    for key, value in row.items():
-        if key not in allowed_keys:
-            continue
-        if isinstance(value, datetime):
-            payload[key] = value.isoformat()
-        else:
-            payload[key] = value
-    return payload
 
 
 def _serialize_job(job: dict[str, Any]) -> dict[str, Any]:
@@ -379,43 +338,3 @@ def _serialize_job(job: dict[str, Any]) -> dict[str, Any]:
         "requested_by": job.get("requested_by"),
         "error": error,
     }
-
-
-def _monitoring_trip_fields() -> set[str]:
-    return {
-        "plate",
-        "started_at",
-        "current_location",
-        "status",
-        "weight",
-        "destination",
-        "collected_at",
-    }
-
-
-def _daily_trip_summary_fields() -> set[str]:
-    return {
-        "report_date",
-        "plate",
-        "fleet",
-        "vehicle_id",
-        "completed_trip_count",
-        "total_suggested_km",
-        "total_driven_km",
-        "collected_at",
-    }
-
-
-def _get_enabled_interval_jobs() -> list[tuple[str, str, int]]:
-    jobs: list[tuple[str, str, int]] = []
-    if settings.monitoring_trips.poll_enabled:
-        jobs.append(("site_alpha", "monitoring_trips", settings.monitoring_trips.poll_interval_seconds))
-    if settings.daily_trip_summary.poll_enabled:
-        jobs.append(("site_alpha", "daily_trip_summary", settings.daily_trip_summary.poll_interval_seconds))
-    return jobs
-
-
-def _today_date_string() -> str:
-    from zoneinfo import ZoneInfo
-
-    return datetime.now(ZoneInfo(settings.app.timezone)).strftime("%d/%m/%Y")

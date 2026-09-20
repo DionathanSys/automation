@@ -58,7 +58,7 @@ class JobExecutor:
         engine = create_mysql_engine()
         self.repository = AutomationRepository(engine)
         self.repository.ensure_schema()
-        self.collector = CollectorService(repository=None)
+        self.collector = CollectorService()
 
     def execute(self, job_id: str) -> None:
         if self.repository.get_system_state()["mode"] != "RUNNING":

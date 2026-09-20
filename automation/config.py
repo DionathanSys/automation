@@ -69,28 +69,9 @@ class SiteSascarConfig:
 
 
 @dataclass(frozen=True)
-class MonitoringTripsConfig:
-    poll_enabled: bool = _get_bool("MONITORING_TRIPS_POLL_ENABLED", False)
-    poll_interval_seconds: int = _get_int("MONITORING_TRIPS_POLL_INTERVAL_SECONDS", 600)
-
-
-@dataclass(frozen=True)
-class DailyTripSummaryConfig:
-    poll_enabled: bool = _get_bool("DAILY_TRIP_SUMMARY_POLL_ENABLED", False)
-    poll_interval_seconds: int = _get_int("DAILY_TRIP_SUMMARY_POLL_INTERVAL_SECONDS", 300)
-
-
-@dataclass(frozen=True)
-class ClosedTripsConfig:
-    poll_enabled: bool = _get_bool("CLOSED_TRIPS_POLL_ENABLED", False)
-    poll_interval_seconds: int = _get_int("CLOSED_TRIPS_POLL_INTERVAL_SECONDS", 900)
-
-
-@dataclass(frozen=True)
 class ApiConfig:
     host: str = os.getenv("API_HOST", "0.0.0.0")
     port: int = _get_int("API_PORT", 8000)
-    api_key: str = os.getenv("API_KEY", "")
 
 
 @dataclass(frozen=True)
@@ -109,6 +90,7 @@ class AutomationConfig:
     webhook_client_id: str = os.getenv("AUTOMATION_WEBHOOK_CLIENT_ID", "automation_prod")
     webhook_secret: str = os.getenv("AUTOMATION_WEBHOOK_SECRET", "")
     previous_webhook_secret: str = os.getenv("AUTOMATION_WEBHOOK_SECRET_PREVIOUS", "")
+    webhook_timeout_seconds: int = _get_int("AUTOMATION_WEBHOOK_TIMEOUT_SECONDS", 30)
     hmac_timestamp_tolerance_seconds: int = _get_int(
         "AUTOMATION_HMAC_TIMESTAMP_TOLERANCE_SECONDS", 300
     )
@@ -118,44 +100,14 @@ class AutomationConfig:
 
 
 @dataclass(frozen=True)
-class StateStoreConfig:
-    sqlite_path: str = os.getenv("STATE_SQLITE_PATH", "automation_state.sqlite3")
-
-
-@dataclass(frozen=True)
-class ReceiverConfig:
-    base_url: str = os.getenv("RECEIVER_BASE_URL", "https://app.axionsoft.com.br")
-    api_key: str = os.getenv("RECEIVER_API_KEY", "")
-    viagem_atual_path: str = os.getenv("RECEIVER_VIAGEM_ATUAL_PATH", "/api/integracoes/viagem-atual")
-    closed_trips_path: str = os.getenv("RECEIVER_CLOSED_TRIPS_PATH", "/api/integracoes/viagens")
-    movimento_diario_path: str = os.getenv(
-        "RECEIVER_MOVIMENTO_DIARIO_PATH", "/api/integracoes/movimento-diario"
-    )
-    historico_quilometragem_path: str = os.getenv(
-        "RECEIVER_HISTORICO_QUILOMETRAGEM_PATH", "/api/integracoes/historico-quilometragem"
-    )
-    webhook_secret: str = os.getenv("RECEIVER_WEBHOOK_SECRET", "")
-    timeout_seconds: int = _get_int("RECEIVER_TIMEOUT_SECONDS", 30)
-    closed_trips_cutoff_date: str = os.getenv("CLOSED_TRIPS_CUTOFF_DATE", "")
-    closed_trips_batch_size: int = _get_int("CLOSED_TRIPS_BATCH_SIZE", 100)
-    default_business_unit: str = os.getenv("RECEIVER_DEFAULT_BUSINESS_UNIT", "CHAPECO")
-    default_customer: str = os.getenv("RECEIVER_DEFAULT_CUSTOMER", "BRF S.A. CHAPECO/SC")
-
-
-@dataclass(frozen=True)
 class Settings:
     app: AppConfig = AppConfig()
     mysql: MySQLConfig = MySQLConfig()
     site_softlog: SiteSoftlogConfig = SiteSoftlogConfig()
     sascar: SiteSascarConfig = SiteSascarConfig()
-    monitoring_trips: MonitoringTripsConfig = MonitoringTripsConfig()
-    daily_trip_summary: DailyTripSummaryConfig = DailyTripSummaryConfig()
-    closed_trips: ClosedTripsConfig = ClosedTripsConfig()
     api: ApiConfig = ApiConfig()
     queue: QueueConfig = QueueConfig()
     automation: AutomationConfig = AutomationConfig()
-    state_store: StateStoreConfig = StateStoreConfig()
-    receiver: ReceiverConfig = ReceiverConfig()
 
 
 settings = Settings()

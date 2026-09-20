@@ -3,8 +3,11 @@
 ## Serviço de Automação Python ↔ Aplicações Laravel
 
 **Versão:** 1.0  
-**Status:** Especificação inicial para implementação  
+**Status:** Especificação inicial; o fluxo de scheduler foi removido da implementação atual
 **Objetivo:** estabelecer um contrato compartilhado entre o serviço Python de automação e as aplicações consumidoras, inicialmente a aplicação Laravel.
+
+> Implementação atual: o Laravel ou outro cliente autorizado é a única origem
+> de novos jobs. Não há scheduler, polling interno ou execução direta por CLI.
 
 ---
 
@@ -30,9 +33,8 @@ O Python não deve conhecer conceitos específicos como `Viagem`, `OrdemDeServic
 ```mermaid
 flowchart TD
     L["Laravel / outro cliente"] -->|"HTTPS + HMAC: cria job"| API["FastAPI"]
-    S["Scheduler Python"] -->|"cria job"| Q["Fila Redis"]
     API --> DB["Banco da automação"]
-    API --> Q
+    API --> Q["Fila Redis"]
     Q --> W["Workers Playwright"]
     W --> C["Collectors"]
     C --> DB
@@ -48,7 +50,6 @@ Componentes previstos:
 - banco próprio da automação;
 - Redis;
 - workers de execução;
-- scheduler;
 - Playwright;
 - collectors independentes;
 - entrega de webhooks com retry;
@@ -70,7 +71,7 @@ Componentes previstos:
 
 1. Playwright nunca deve executar dentro de uma requisição HTTP.
 2. Toda execução deve ser representada por um `job` persistido.
-3. Toda execução, manual ou agendada, deve entrar pela mesma fila.
+3. Toda execução solicitada pela API deve entrar pela mesma fila.
 4. Python e Laravel devem usar bancos separados.
 5. Nenhuma aplicação deve acessar diretamente as tabelas da outra.
 6. Toda comunicação deve ocorrer por HTTPS e contrato versionado.
@@ -949,25 +950,15 @@ O worker deve sempre fechar browser, contextos e arquivos temporários em bloco 
 
 ---
 
-## 19. Scheduler
+## 19. Disparo sob demanda
 
-O scheduler pertence ao serviço Python e apenas cria jobs usando o mesmo `JobService` usado pela API.
-
-Não deve haver um caminho separado que chame diretamente o collector.
-
-```text
-Scheduler ─┐
-Laravel ───┼──> JobService ──> Fila ──> Worker ──> Collector
-CLI ───────┘
-```
-
-Jobs agendados devem ter chave idempotente determinística, por exemplo:
+O Laravel ou outro cliente autorizado cria jobs usando o `JobService` da API.
+Não deve haver um caminho separado que chame diretamente o collector. O fluxo
+é sempre:
 
 ```text
-schedule:{schedule_id}:{scheduled_time_utc}
+Cliente ──> API ──> JobService ──> Fila ──> Worker ──> Collector
 ```
-
-Isso impede duplicidade se o scheduler reiniciar.
 
 ---
 
@@ -1024,7 +1015,6 @@ Em Docker Compose:
 ```text
 automation-api        FastAPI
 automation-worker     Python + Playwright
-automation-scheduler  Agendador
 automation-redis      Fila e coordenação
 automation-db         PostgreSQL ou MariaDB dedicado
 ```
@@ -1108,7 +1098,7 @@ Colunas:
 
 - ID curto;
 - collector;
-- origem: manual/agendada;
+- origem: cliente da API;
 - status;
 - progresso;
 - solicitante;
@@ -1242,7 +1232,6 @@ Assim, mudanças na regra da operação não exigem alterar o robô que coleta a
 - pause/resume;
 - cancelamento cooperativo;
 - retry manual;
-- scheduler criando jobs;
 - painel Filament;
 - métricas, alertas e retenção.
 

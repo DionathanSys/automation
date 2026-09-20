@@ -3,12 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable
-from zoneinfo import ZoneInfo
 
-from automation.config import settings
+from automation.collectors.site_alpha_closed_trips import SiteAlphaClosedTripsCollector
 from automation.services.collector import CollectorService
-from automation.services.sascar_sync import SascarSyncService
-from automation.services.site_alpha_sync import SiteAlphaSyncService
+from automation.services.sascar_sync import SascarCollectorService
 
 
 ProgressCallback = Callable[[int, int | None, str | None], None]
@@ -77,15 +75,13 @@ def _execute_closed_trips(
     progress: ProgressCallback,
     is_cancelled: CancellationCheck,
 ) -> list[dict[str, Any]]:
-    raw_start = str(parameters.get("from") or settings.receiver.closed_trips_cutoff_date)
-    raw_end = str(
-        parameters.get("to")
-        or datetime.now(ZoneInfo(settings.app.timezone)).strftime("%Y-%m-%d")
-    )
+    raw_start = str(parameters.get("from") or "")
+    raw_end = str(parameters.get("to") or "")
     if not raw_start:
-        raise ValueError("Informe from ou configure CLOSED_TRIPS_CUTOFF_DATE.")
-    service = SiteAlphaSyncService(state_repository=None, push_client=None)
-    return service.collect_closed_trips(
+        raise ValueError("Informe o parametro from para a coleta de viagens encerradas.")
+    if not raw_end:
+        raise ValueError("Informe o parametro to para a coleta de viagens encerradas.")
+    return SiteAlphaClosedTripsCollector().collect(
         _parse_date(raw_start),
         _parse_date(raw_end),
         progress_callback=progress,
@@ -99,19 +95,11 @@ def _execute_sascar_daily_movement(
     progress: ProgressCallback,
     is_cancelled: CancellationCheck,
 ) -> list[dict[str, Any]]:
-    service = SascarSyncService(push_client=None)
-    rows = service.push_daily_movement(
-        dry_run=True,
-        vehicle_limit=parameters.get("vehicle_limit"),
+    if is_cancelled():
+        return []
+    return SascarCollectorService().collect_daily_movement(
+        vehicle_limit=parameters.get("vehicle_limit")
     )
-    return [
-        {
-            "external_id": f"{row.get('veiculo')}:{row.get('dia')}",
-            **row,
-        }
-        for row in rows
-        if not is_cancelled()
-    ]
 
 
 def _execute_sascar_traveled_distance(
@@ -120,20 +108,15 @@ def _execute_sascar_traveled_distance(
     progress: ProgressCallback,
     is_cancelled: CancellationCheck,
 ) -> list[dict[str, Any]]:
-    service = SascarSyncService(push_client=None)
-    batches = service.push_traveled_distance(dry_run=True)
-    rows: list[dict[str, Any]] = []
-    for batch in batches:
-        for row in batch.get("registros", []):
-            if is_cancelled():
-                return rows
-            rows.append(
-                {
-                    "external_id": f"{row.get('placa')}:{row.get('data_referencia')}",
-                    **row,
-                }
-            )
-    return rows
+    if is_cancelled():
+        return []
+    return [
+        {
+            "external_id": f"{row.get('placa')}:{row.get('data_referencia')}",
+            **row,
+        }
+        for row in SascarCollectorService().collect_traveled_distance()
+    ]
 
 
 COLLECTOR_REGISTRY: dict[str, CollectorDefinition] = {

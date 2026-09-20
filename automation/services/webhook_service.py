@@ -82,7 +82,7 @@ class WebhookService:
         response_excerpt: str | None = None
         try:
             req = request.Request(callback_url, data=body, headers=headers, method="POST")
-            with request.urlopen(req, timeout=settings.receiver.timeout_seconds) as response:
+            with request.urlopen(req, timeout=settings.automation.webhook_timeout_seconds) as response:
                 http_status = response.status
                 response_excerpt = response.read(500).decode("utf-8", errors="replace")
         except error.HTTPError as exc:

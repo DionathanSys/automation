@@ -1,7 +1,6 @@
 import unittest
-from unittest.mock import Mock
 
-from automation.services.sascar_sync import SascarSyncService
+from automation.services.sascar_sync import SascarCollectorService
 
 
 class FakeSascarSession:
@@ -20,8 +19,7 @@ class FakeSascarSession:
 
 class SascarSyncTest(unittest.TestCase):
     def test_skips_non_positive_odometer_before_sending(self) -> None:
-        push_client = Mock()
-        service = SascarSyncService(push_client)
+        service = SascarCollectorService()
         service._sascar_session = lambda: FakeSascarSession(
             [
                 {"placa": "ABC1D23", "data_referencia": "2026-09-14", "quilometragem": 120},
@@ -29,11 +27,10 @@ class SascarSyncTest(unittest.TestCase):
             ]
         )
 
-        payloads = service.push_traveled_distance()
+        registros = service.collect_traveled_distance()
 
-        self.assertEqual(1, len(payloads[0]["registros"]))
-        self.assertEqual("ABC1D23", payloads[0]["registros"][0]["placa"])
-        push_client.push_historico_quilometragem.assert_called_once_with(payloads[0])
+        self.assertEqual(1, len(registros))
+        self.assertEqual("ABC1D23", registros[0]["placa"])
 
 
 if __name__ == "__main__":

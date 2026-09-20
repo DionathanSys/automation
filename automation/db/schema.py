@@ -2,34 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Index, Integer, MetaData, String, Table, Text, UniqueConstraint
 
-from automation.models import ReportColumn, ReportDefinition, SQL_TYPE_MAP
-from automation.reports import REPORT_REGISTRY
-
-
-legacy_metadata = MetaData()
 automation_metadata = MetaData()
-
-# Legacy report repositories still import db_metadata. Keep this alias while
-# preventing operational tables from being included in legacy migrations.
-db_metadata = legacy_metadata
-
-
-job_runs_table = Table(
-    "job_runs",
-    legacy_metadata,
-    Column("id", String(36), primary_key=True),
-    Column("site_name", String(100), nullable=False),
-    Column("report_name", String(100), nullable=False),
-    Column("status", String(30), nullable=False),
-    Column("started_at", DateTime, nullable=False),
-    Column("finished_at", DateTime, nullable=False),
-    Column("pages_processed", Integer, nullable=False),
-    Column("rows_processed", Integer, nullable=False),
-    Column("inserted_count", Integer, nullable=False),
-    Column("updated_count", Integer, nullable=False),
-    Column("error_message", String(1000)),
-    Column("filters", JSON),
-)
 
 
 clients_table = Table(
@@ -170,38 +143,3 @@ Index("ix_automation_events_job_id", events_table.c.job_id)
 Index("ix_automation_events_client_id", events_table.c.client_id)
 Index("ix_automation_webhook_deliveries_event_id", webhook_deliveries_table.c.event_id)
 Index("ix_automation_hmac_nonces_expires_at", nonces_table.c.expires_at)
-
-
-def build_report_table(metadata: MetaData, definition: ReportDefinition) -> Table:
-    existing_table = metadata.tables.get(definition.table_name)
-    if existing_table is not None:
-        return existing_table
-
-    column_names = {column.name for column in definition.columns}
-    for unique_key in definition.unique_keys:
-        if unique_key not in column_names:
-            raise ValueError(f"Unique key '{unique_key}' nao encontrada em {definition.table_name}.")
-
-    return Table(
-        definition.table_name,
-        metadata,
-        Column("id", String(64), primary_key=True),
-        *[_build_report_column(column) for column in definition.columns],
-        Column("created_at", DateTime, nullable=False),
-        Column("updated_at", DateTime, nullable=False),
-    )
-
-
-def _build_report_column(column: ReportColumn) -> Column:
-    column_type = SQL_TYPE_MAP.get(column.data_type)
-    if column_type is None:
-        raise ValueError(f"Tipo de coluna nao suportado: {column.data_type}")
-
-    if column.data_type == "string" and column.length:
-        column_type = String(column.length)
-
-    return Column(column.name, column_type, nullable=column.nullable)
-
-
-for report_definition in REPORT_REGISTRY.values():
-    build_report_table(legacy_metadata, report_definition)

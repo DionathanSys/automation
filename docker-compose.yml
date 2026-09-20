@@ -61,22 +61,6 @@ services:
       redis:
         condition: service_healthy
 
-  scheduler:
-    build: .
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      MYSQL_HOST: mysql
-      MYSQL_DATABASE: automation
-      MYSQL_USER: automation
-      REDIS_URL: redis://redis:6379/0
-    command: ["python3", "runner.py", "--automation-scheduler"]
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
 volumes:
   automation_mysql:
   automation_redis:
