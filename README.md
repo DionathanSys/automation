@@ -126,6 +126,46 @@ GET /health
 
 Se `API_KEY` estiver preenchida no `.env`, envie o header `X-API-Key`.
 
+## Nova API de automacao
+
+A integracao assincrona usa MySQL como banco operacional, Redis como fila e um
+worker Dramatiq para executar Playwright fora do processo HTTP. O servico API
+nao deve executar browsers durante uma requisicao.
+
+Inicialize os processos separadamente:
+
+```bash
+python3 runner.py --init-automation-db
+python3 runner.py --serve-api
+./run-automation-worker.sh
+python3 runner.py --automation-scheduler
+```
+
+Endpoints da versao 1:
+
+```text
+GET  /health
+GET  /ready
+POST /api/v1/jobs
+GET  /api/v1/jobs/{job_id}
+GET  /api/v1/jobs/{job_id}/result
+POST /api/v1/jobs/{job_id}/cancel
+POST /api/v1/jobs/{job_id}/retry
+GET  /api/v1/collectors
+GET  /api/v1/system/status
+POST /api/v1/system/pause
+POST /api/v1/system/resume
+```
+
+As chamadas `/api/v1` exigem HMAC v1 com `X-Client-ID`, `X-Timestamp`,
+`X-Nonce`, `X-Signature` e `X-Signature-Version: v1`. O cliente configurado por
+`AUTOMATION_CLIENT_ID` e `AUTOMATION_CLIENT_SECRET` e criado automaticamente
+no banco operacional durante o startup da API.
+
+Os fluxos legados de envio direto para o receptor continuam disponiveis durante
+a migracao. Nao habilite os dois fluxos para a mesma coleta em producao ate que
+a importacao Laravel esteja validada.
+
 Variaveis novas no `.env`:
 
 ```env

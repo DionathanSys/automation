@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
@@ -70,6 +71,44 @@ class SiteAlphaSyncService:
         if end_date < start_date:
             raise ValueError("A data final deve ser maior ou igual a data inicial.")
         return self._sync_closed_trips(start_date, end_date, dry_run=dry_run, save_checkpoint=False)
+
+    def collect_closed_trips(
+        self,
+        start_date: date,
+        end_date: date,
+        progress_callback=None,
+        cancellation_check=None,
+    ) -> list[dict[str, Any]]:
+        """Collect source rows without applying ERP mapping or sending them."""
+        if end_date < start_date:
+            raise ValueError("A data final deve ser maior ou igual a data inicial.")
+
+        collected_rows: list[dict[str, Any]] = []
+        current_date = start_date
+        total_days = (end_date - start_date).days + 1
+        day_number = 0
+        with self._site_session() as site:
+            while current_date <= end_date:
+                if cancellation_check and cancellation_check():
+                    from automation.services.collector import CollectorCancelled
+
+                    raise CollectorCancelled()
+                report_date = self._format_date(current_date)
+                site.open_report(
+                    "closed_trips",
+                    {
+                        "start_date": self._format_date(current_date - timedelta(days=1)),
+                        "end_date": report_date,
+                    },
+                )
+                rows = self._filter_closed_trips(site.extract_current_page("closed_trips"), current_date)
+                collected_rows.extend(self._normalize_closed_trip_row(row, report_date) for row in rows)
+                day_number += 1
+                if progress_callback:
+                    progress_callback(day_number, total_days, f"Data {report_date} coletada")
+                current_date += timedelta(days=1)
+
+        return collected_rows
 
     def _sync_closed_trips(
         self,
@@ -317,6 +356,26 @@ class SiteAlphaSyncService:
             "pendencias": [],
             "motorista1": self._clean_optional(row.get("motorista1")),
             "motorista2": self._clean_optional(row.get("motorista2")),
+        }
+
+    def _normalize_closed_trip_row(self, row: dict[str, Any], report_date: str) -> dict[str, Any]:
+        trip_number = str(row["trip_number"])
+        return {
+            "external_id": f"site_alpha:closed_trip:{trip_number}",
+            "trip_number": trip_number,
+            "plate": self._clean_optional(row.get("plate")),
+            "vehicle_id": row.get("vehicle_id"),
+            "fleet": self._clean_optional(row.get("fleet")),
+            "started_at": row.get("started_at"),
+            "ended_at": row.get("ended_at"),
+            "suggested_km": row.get("suggested_km"),
+            "driven_km": row.get("driven_km"),
+            "destination": self._clean_optional(row.get("cliente")),
+            "cargo_reference": self._clean_optional(row.get("carga_cliente")),
+            "driver_1": self._clean_optional(row.get("motorista1")),
+            "driver_2": self._clean_optional(row.get("motorista2")),
+            "report_date": report_date,
+            "collected_at": datetime.now(ZoneInfo(settings.app.timezone)),
         }
 
     def _format_payload_datetime(self, value: Any, field_name: str) -> str:

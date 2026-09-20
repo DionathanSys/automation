@@ -8,12 +8,13 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.blocking import BlockingScheduler
 from automation.api import run_api
 from automation.config import settings
+from automation.db.automation_repository import AutomationRepository
 from automation.db.connection import create_mysql_engine
 from automation.db.repository import MySQLRepository
 from automation.jobs.interval import register_interval_job
 from automation.jobs.registry import JOB_REGISTRY
 from automation.reports import REPORT_REGISTRY
-from automation.jobs.scheduler import start_scheduler
+from automation.jobs.scheduler import start_automation_scheduler, start_scheduler
 from automation.services.collector import CollectorService
 from automation.services.push_client import AppPushClient
 from automation.services.sascar_sync import SascarSyncService
@@ -32,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--filters", help="Filtros em JSON para execucao manual")
     parser.add_argument("--run-all", action="store_true", help="Executa todos os jobs habilitados")
     parser.add_argument("--scheduler", action="store_true", help="Inicia o scheduler")
+    parser.add_argument(
+        "--automation-scheduler",
+        action="store_true",
+        help="Inicia o scheduler que enfileira jobs de automacao",
+    )
     parser.add_argument("--test-login", action="store_true", help="Testa apenas o login de um site")
     parser.add_argument(
         "--test-monitoring-trips",
@@ -44,6 +50,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Testa a leitura do resumo diario de viagens encerradas do site_alpha",
     )
     parser.add_argument("--serve-api", action="store_true", help="Inicia a API HTTP")
+    parser.add_argument(
+        "--init-automation-db",
+        action="store_true",
+        help="Cria as tabelas operacionais da automacao no MySQL",
+    )
     parser.add_argument(
         "--poll-monitoring-trips",
         action="store_true",
@@ -149,6 +160,18 @@ def main() -> int:
 
     if args.serve_api:
         run_api()
+        return 0
+
+    if args.init_automation_db:
+        automation_repository = AutomationRepository(create_mysql_engine())
+        automation_repository.ensure_schema()
+        automation_repository.ensure_configured_client()
+        print("Banco operacional da automacao inicializado.")
+        return 0
+
+    if args.automation_scheduler:
+        automation_repository = AutomationRepository(create_mysql_engine())
+        start_automation_scheduler(automation_repository)
         return 0
 
     state_repository = SQLiteStateRepository(settings.state_store.sqlite_path)

@@ -63,7 +63,23 @@ class SascarSyncService:
         with self._sascar_session() as site:
             registros = site.generate_traveled_distance()
 
-        if not registros:
+        valid_registros: list[dict[str, Any]] = []
+        for registro in registros:
+            try:
+                quilometragem = float(registro["quilometragem"])
+            except (KeyError, TypeError, ValueError):
+                logger.warning("Ignorando registro de quilometragem invalido: %s", registro)
+                continue
+            if quilometragem <= 0:
+                logger.warning(
+                    "Ignorando quilometragem nao positiva. placa=%s valor=%s",
+                    registro.get("placa"),
+                    registro.get("quilometragem"),
+                )
+                continue
+            valid_registros.append(registro)
+
+        if not valid_registros:
             logger.info(
                 "Nenhuma quilometragem encontrada para hoje na filial %s.",
                 settings.sascar.filial_veiculo,
@@ -72,11 +88,11 @@ class SascarSyncService:
 
         payload = {
             "lote_id": self._build_odometer_lote_id(),
-            "registros": registros,
+            "registros": valid_registros,
         }
         if not dry_run:
             self.push_client.push_historico_quilometragem(payload)
-        logger.info("Distancia percorrida coletada (%s registro(s)).", len(registros))
+        logger.info("Distancia percorrida coletada (%s registro(s)).", len(valid_registros))
         return [payload]
 
     def _sascar_session(self):
@@ -112,7 +128,7 @@ class SascarSyncService:
     ) -> dict[str, Any]:
         return {
             "lote_id": lote_id,
-            "veiculo": vehicle["plate"],
+            "veiculo": vehicle["plate"].split("-", 1)[0].strip(),
             "filial": settings.sascar.filial_veiculo,
             "inicio": inicio.strftime("%Y-%m-%d %H:%M:%S"),
             "fim": fim.strftime("%Y-%m-%d %H:%M:%S"),

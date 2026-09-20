@@ -5,8 +5,9 @@ da mesma forma que ela roda atualmente neste ambiente.
 
 ## Como a aplicacao funciona hoje
 
-Nao existe um processo unico rodando continuamente. O `cron` inicia quatro
-execucoes independentes a cada 15 minutos:
+Nao existe um processo unico rodando continuamente. O `cron` inicia tres
+execucoes independentes a cada 15 minutos e a busca de distancia percorrida
+a cada 6 horas:
 
 - Envio do monitoramento de viagens do `site_alpha`.
 - Sincronizacao das viagens encerradas do `site_alpha`.
@@ -199,7 +200,7 @@ Adicione estas quatro linhas:
 ```cron
 0,15,30,45 * * * * /opt/automation/run-scheduled.sh --push-monitoring-trips
 2,17,32,47 * * * * /opt/automation/run-scheduled.sh --sync-closed-trips
-4,19,34,49 * * * * /opt/automation/run-scheduled.sh --push-distancia-percorrida
+4 0,6,12,18 * * * /opt/automation/run-scheduled.sh --push-distancia-percorrida
 6,21,36,51 * * * * /opt/automation/run-scheduled.sh --push-movimento-diario
 ```
 
@@ -280,3 +281,43 @@ inicia um novo processo Python.
 - Os logs podem crescer bastante. Configure rotacao de logs se a VPS tiver
   pouco espaco em disco.
 - Nao publique o `.env` no Git nem envie seus segredos em mensagens.
+
+## Nova arquitetura assincrona
+
+Para ativar a nova integracao, o MySQL usado pelo servico deve ser separado do
+banco do Laravel. Redis tambem deve ficar local ou em rede privada.
+
+Adicione ao `.env` pelo menos:
+
+```env
+MYSQL_DATABASE=automation
+MYSQL_USER=automation
+MYSQL_PASSWORD=UMA_SENHA_FORTE
+REDIS_URL=redis://localhost:6379/0
+AUTOMATION_CLIENT_ID=laravel-prod
+AUTOMATION_CLIENT_SECRET=SEGREDO_HMAC
+AUTOMATION_CALLBACK_URL=https://dominio-do-laravel/api/integrations/automation/v1/webhooks
+AUTOMATION_WEBHOOK_CLIENT_ID=automation_prod
+AUTOMATION_WEBHOOK_SECRET=SEGREDO_WEBHOOK
+```
+
+Instale Redis e a dependencia Python antes de ativar os processos:
+
+```bash
+sudo apt install -y redis-server
+sudo systemctl enable --now redis-server
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+A API, o worker e o scheduler devem ser processos separados. Em uma VPS com
+baixa concorrencia, um worker com uma thread e suficiente:
+
+```bash
+./run-automation-worker.sh
+python3 runner.py --serve-api
+python3 runner.py --automation-scheduler
+```
+
+Use `systemd` ou outro supervisor para reiniciar os tres processos. Nao rode o
+scheduler assincrono dentro da API e nao habilite simultaneamente o cron legado
+para a mesma coleta.

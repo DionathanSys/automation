@@ -76,10 +76,40 @@ class DailyTripSummaryConfig:
 
 
 @dataclass(frozen=True)
+class ClosedTripsConfig:
+    poll_enabled: bool = _get_bool("CLOSED_TRIPS_POLL_ENABLED", False)
+    poll_interval_seconds: int = _get_int("CLOSED_TRIPS_POLL_INTERVAL_SECONDS", 900)
+
+
+@dataclass(frozen=True)
 class ApiConfig:
     host: str = os.getenv("API_HOST", "0.0.0.0")
     port: int = _get_int("API_PORT", 8000)
     api_key: str = os.getenv("API_KEY", "")
+
+
+@dataclass(frozen=True)
+class QueueConfig:
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    queue_name: str = os.getenv("AUTOMATION_QUEUE_NAME", "automation")
+    worker_id: str = os.getenv("AUTOMATION_WORKER_ID", "automation-worker-1")
+
+
+@dataclass(frozen=True)
+class AutomationConfig:
+    client_id: str = os.getenv("AUTOMATION_CLIENT_ID", "")
+    client_secret: str = os.getenv("AUTOMATION_CLIENT_SECRET", "")
+    previous_client_secret: str = os.getenv("AUTOMATION_CLIENT_SECRET_PREVIOUS", "")
+    callback_url: str = os.getenv("AUTOMATION_CALLBACK_URL", "")
+    webhook_client_id: str = os.getenv("AUTOMATION_WEBHOOK_CLIENT_ID", "automation_prod")
+    webhook_secret: str = os.getenv("AUTOMATION_WEBHOOK_SECRET", "")
+    previous_webhook_secret: str = os.getenv("AUTOMATION_WEBHOOK_SECRET_PREVIOUS", "")
+    hmac_timestamp_tolerance_seconds: int = _get_int(
+        "AUTOMATION_HMAC_TIMESTAMP_TOLERANCE_SECONDS", 300
+    )
+    nonce_ttl_seconds: int = _get_int("AUTOMATION_NONCE_TTL_SECONDS", 600)
+    max_result_page_size: int = _get_int("AUTOMATION_MAX_RESULT_PAGE_SIZE", 500)
+    default_max_attempts: int = _get_int("AUTOMATION_DEFAULT_MAX_ATTEMPTS", 3)
 
 
 @dataclass(frozen=True)
@@ -115,7 +145,10 @@ class Settings:
     sascar: SiteSascarConfig = SiteSascarConfig()
     monitoring_trips: MonitoringTripsConfig = MonitoringTripsConfig()
     daily_trip_summary: DailyTripSummaryConfig = DailyTripSummaryConfig()
+    closed_trips: ClosedTripsConfig = ClosedTripsConfig()
     api: ApiConfig = ApiConfig()
+    queue: QueueConfig = QueueConfig()
+    automation: AutomationConfig = AutomationConfig()
     state_store: StateStoreConfig = StateStoreConfig()
     receiver: ReceiverConfig = ReceiverConfig()
 
