@@ -46,6 +46,13 @@ Com Docker Compose:
 docker compose up --build
 ```
 
+Em uma VPS sem Docker, use o atualizador versionado depois de configurar o
+`.env`:
+
+```bash
+./update-vps.sh
+```
+
 Nao execute scheduler ou cron para criar jobs. Toda coleta deve ser disparada
 por `POST /api/v1/jobs`.
 

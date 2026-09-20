@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python3 runner.py --serve-api
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+exec "$ROOT/.venv/bin/python" runner.py --serve-api
