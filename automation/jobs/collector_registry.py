@@ -67,11 +67,15 @@ def _execute_daily_trip_summary(
     progress: ProgressCallback,
     is_cancelled: CancellationCheck,
 ) -> list[dict[str, Any]]:
-    raw_date = str(parameters.get("date") or "")
-    if not raw_date:
-        raise ValueError("Informe o parametro date para o resumo diario de viagens.")
+    raw_start = str(parameters.get("from") or parameters.get("date") or "")
+    raw_end = str(parameters.get("to") or parameters.get("date") or "")
+    if not raw_start:
+        raise ValueError("Informe o parametro from para o resumo diario de viagens.")
+    if not raw_end:
+        raise ValueError("Informe o parametro to para o resumo diario de viagens.")
     return DailyTripSummaryCollector().collect(
-        _parse_date(raw_date),
+        _parse_date(raw_start),
+        _parse_date(raw_end),
         progress_callback=progress,
         cancellation_check=is_cancelled,
     )

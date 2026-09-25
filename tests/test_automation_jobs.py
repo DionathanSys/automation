@@ -144,7 +144,7 @@ class AutomationRepositoryTest(unittest.TestCase):
         response = route.endpoint(
             CreateJobRequest(
                 collector="daily_trip_summary",
-                parameters={"date": "2026-09-19"},
+                parameters={"from": "2026-09-19", "to": "2026-09-19"},
                 requested_by="user:1",
                 metadata={
                     "local_job_id": "5",

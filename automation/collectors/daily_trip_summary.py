@@ -11,13 +11,14 @@ class DailyTripSummaryCollector:
 
     def collect(
         self,
-        report_date: date,
+        start_date: date,
+        end_date: date,
         progress_callback=None,
         cancellation_check=None,
     ) -> list[dict[str, Any]]:
         rows = SiteAlphaClosedTripsCollector().collect(
-            report_date,
-            report_date,
+            start_date,
+            end_date,
             progress_callback=progress_callback,
             cancellation_check=cancellation_check,
         )

@@ -1,5 +1,6 @@
 import unittest
 from datetime import date, datetime
+from unittest.mock import Mock, patch
 
 from automation.collectors.daily_trip_summary import DailyTripSummaryCollector
 from automation.collectors.site_alpha_closed_trips import SiteAlphaClosedTripsCollector
@@ -118,6 +119,25 @@ class DailyTripSummaryCollectorTest(unittest.TestCase):
                 "motoristas": ["Motorista 1", "Motorista 2"],
             },
             payload,
+        )
+
+    def test_collects_the_complete_inclusive_period(self) -> None:
+        fake_source = Mock()
+        fake_source.collect.return_value = []
+        with patch(
+            "automation.collectors.daily_trip_summary.SiteAlphaClosedTripsCollector",
+            return_value=fake_source,
+        ):
+            DailyTripSummaryCollector().collect(
+                date(2026, 9, 19),
+                date(2026, 9, 21),
+            )
+
+        fake_source.collect.assert_called_once_with(
+            date(2026, 9, 19),
+            date(2026, 9, 21),
+            progress_callback=None,
+            cancellation_check=None,
         )
 
 

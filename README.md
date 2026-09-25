@@ -81,10 +81,13 @@ da data inicial. Depois, o collector mantem somente registros cujo `ended_at`
 esteja dentro do periodo solicitado. Essa sobreposicao captura viagens longas
 que comecaram antes, mas terminaram no periodo.
 
-O collector `daily_trip_summary` recebe `parameters.date` e retorna uma viagem
-por registro com `numero_viagem`, `placa`, `cliente`, `destino`, `km_rodado`,
-`km_pago`, `data_competencia`, `data_inicio`, `data_fim`,
-`possui_pendencia`, `pendencias` e `motoristas`.
+O collector `daily_trip_summary` recebe `parameters.from` e `parameters.to`,
+com limites inclusivos, e retorna uma viagem por registro com
+`numero_viagem`, `placa`, `cliente`, `destino`, `km_rodado`, `km_pago`,
+`data_competencia`, `data_inicio`, `data_fim`, `possui_pendencia`,
+`pendencias` e `motoristas`. O formato recomendado e `YYYY-MM-DD`; o formato
+`DD/MM/YYYY` tambem e aceito. O campo legado `date` continua aceito para uma
+execucao de um unico dia.
 
 ## API
 
