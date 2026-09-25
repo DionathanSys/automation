@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import time
 import unittest
 from unittest.mock import Mock, patch
@@ -9,6 +10,8 @@ from sqlalchemy import create_engine
 from automation.db.automation_repository import AutomationRepository, new_id, utc_now
 from automation.db.schema import clients_table
 from automation.db.schema import events_table, webhook_deliveries_table
+from automation.api import create_app
+from automation.api_schemas import CreateJobRequest
 from automation.config import settings
 from automation.jobs.service import JobService, JobServiceError
 from automation.security.hmac import HmacAuthenticator, HmacAuthenticationError, HmacSigner
@@ -101,6 +104,97 @@ class AutomationRepositoryTest(unittest.TestCase):
         self.assertEqual(["1", "2"], [row["external_id"] for row in first["data"]])
         self.assertEqual(["3"], [row["external_id"] for row in second["data"]])
         self.assertIsNone(second["meta"]["next_cursor"])
+
+    def test_lists_jobs_and_exposes_diagnostics(self) -> None:
+        service = JobService(self.repository, enqueue=lambda _: None)
+        job, _ = service.create_job(
+            client=self.client,
+            collector_name="site_alpha_monitoring_trips",
+            parameters={"vehicle": "ABC1D23"},
+            requested_by="user:1",
+            metadata={"source": "filament"},
+            idempotency_key="diagnostics-1",
+        )
+        claimed = self.repository.claim_job(job["id"])
+        assert claimed is not None
+        self.repository.complete_job(job["id"], 1, 0, "sha256:empty")
+        completed = self.repository.get_job(job["id"])
+        assert completed is not None
+        event_id = self.repository.save_event_for_job(completed, "job.completed")
+
+        listed = service.list_jobs(self.client, "COMPLETED", None, 10)
+        diagnostics = service.get_diagnostics(self.client, job["id"])
+
+        self.assertEqual([job["id"]], [item["id"] for item in listed])
+        self.assertEqual("COMPLETED", diagnostics["job"]["status"])
+        self.assertEqual("COMPLETED", diagnostics["attempts"][0]["status"])
+        self.assertEqual(event_id, diagnostics["events"][0]["event_id"])
+        self.assertEqual([], diagnostics["webhook_deliveries"])
+
+    def test_post_accepts_daily_trip_summary_payload(self) -> None:
+        queued: list[str] = []
+        app = create_app(self.engine, enqueue=queued.append)
+        route = next(
+            route
+            for route in app.routes
+            if getattr(route, "path", None) == "/api/v1/jobs"
+            and "POST" in getattr(route, "methods", set())
+        )
+
+        response = route.endpoint(
+            CreateJobRequest(
+                collector="daily_trip_summary",
+                parameters={"date": "2026-09-19"},
+                requested_by="user:1",
+                metadata={
+                    "local_job_id": "5",
+                    "report_key": "daily_trip_summary",
+                    "collector_version": "1.0.0",
+                    "schema_version": "1.0",
+                },
+            ),
+            "daily-trip-summary-2026-09-19-5",
+            self.client,
+        )
+
+        self.assertEqual(202, response.status_code)
+        body = json.loads(response.body)
+        self.assertEqual("daily_trip_summary", body["data"]["collector"])
+        self.assertEqual("1.0.0", body["data"]["collector_version"])
+        self.assertEqual("1.0", body["data"]["schema_version"])
+        self.assertEqual("QUEUED", body["data"]["status"])
+        self.assertEqual([body["data"]["id"]], queued)
+
+        collectors_route = next(
+            route
+            for route in app.routes
+            if getattr(route, "path", None) == "/api/v1/collectors"
+            and "GET" in getattr(route, "methods", set())
+        )
+        collectors_response = collectors_route.endpoint(self.client)
+        collector_names = {item["name"] for item in collectors_response["data"]}
+        self.assertIn("daily_trip_summary", collector_names)
+        daily_definition = next(
+            item
+            for item in collectors_response["data"]
+            if item["name"] == "daily_trip_summary"
+        )
+        self.assertEqual("1.0.0", daily_definition["version"])
+        self.assertEqual("1.0", daily_definition["schema_version"])
+
+    def test_empty_allowed_collectors_does_not_grant_access(self) -> None:
+        restricted_client = {**self.client, "allowed_collectors": []}
+        service = JobService(self.repository, enqueue=lambda _: None)
+
+        with self.assertRaisesRegex(JobServiceError, "Collector nao permitido"):
+            service.create_job(
+                client=restricted_client,
+                collector_name="daily_trip_summary",
+                parameters={"date": "2026-09-19"},
+                requested_by="user:1",
+                metadata={},
+                idempotency_key="restricted-1",
+            )
 
 
 class HmacTest(unittest.TestCase):

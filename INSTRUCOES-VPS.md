@@ -49,6 +49,22 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/ready
 ```
 
+## Acompanhar e depurar jobs
+
+O `job_id` retornado pelo Filament pode ser acompanhado diretamente na VPS:
+
+```bash
+cd /opt/automation
+.venv/bin/python runner.py --watch-job JOB_ID
+.venv/bin/python runner.py --inspect-job JOB_ID
+sudo journalctl -fu automation-api
+sudo journalctl -fu automation-worker
+```
+
+Para uma tela no Filament, use `GET /api/v1/jobs` para a lista e
+`GET /api/v1/jobs/{job_id}/diagnostics` para tentativas, erros, eventos e
+entregas de webhook. Esses endpoints usam a mesma autenticacao HMAC.
+
 ## Atualizar a VPS
 
 Antes de atualizar, confirme que o `.env` local nao sera alterado pelo Git:

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable
 
+from automation.collectors.daily_trip_summary import DailyTripSummaryCollector
 from automation.collectors.site_alpha_closed_trips import SiteAlphaClosedTripsCollector
 from automation.services.collector import CollectorService
 from automation.services.sascar_sync import SascarCollectorService
@@ -51,13 +52,29 @@ def _execute_monitoring_trips(
     return _execute_report("monitoring_trips", parameters, collector, progress, is_cancelled)
 
 
-def _execute_daily_trip_summary(
+def _execute_site_alpha_daily_trip_summary(
     parameters: dict[str, Any],
     collector: CollectorService,
     progress: ProgressCallback,
     is_cancelled: CancellationCheck,
 ) -> list[dict[str, Any]]:
     return _execute_report("daily_trip_summary", parameters, collector, progress, is_cancelled)
+
+
+def _execute_daily_trip_summary(
+    parameters: dict[str, Any],
+    collector: CollectorService,
+    progress: ProgressCallback,
+    is_cancelled: CancellationCheck,
+) -> list[dict[str, Any]]:
+    raw_date = str(parameters.get("date") or "")
+    if not raw_date:
+        raise ValueError("Informe o parametro date para o resumo diario de viagens.")
+    return DailyTripSummaryCollector().collect(
+        _parse_date(raw_date),
+        progress_callback=progress,
+        cancellation_check=is_cancelled,
+    )
 
 
 def _parse_date(value: str) -> date:
@@ -129,6 +146,13 @@ COLLECTOR_REGISTRY: dict[str, CollectorDefinition] = {
     ),
     "site_alpha_daily_trip_summary": CollectorDefinition(
         name="site_alpha_daily_trip_summary",
+        version="1.0.0",
+        schema_version="1.0",
+        max_concurrency=1,
+        execute=_execute_site_alpha_daily_trip_summary,
+    ),
+    "daily_trip_summary": CollectorDefinition(
+        name="daily_trip_summary",
         version="1.0.0",
         schema_version="1.0",
         max_concurrency=1,

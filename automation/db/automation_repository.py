@@ -155,6 +155,69 @@ class AutomationRepository:
             row = connection.execute(select(jobs_table).where(and_(*conditions))).mappings().first()
         return dict(row) if row is not None else None
 
+    def list_jobs(
+        self,
+        client_id: str,
+        status: str | None = None,
+        collector: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        conditions = [jobs_table.c.client_id == client_id]
+        if status:
+            conditions.append(jobs_table.c.status == status.upper())
+        if collector:
+            conditions.append(jobs_table.c.collector == collector)
+
+        with self.engine.connect() as connection:
+            rows = connection.execute(
+                select(jobs_table)
+                .where(and_(*conditions))
+                .order_by(jobs_table.c.requested_at.desc())
+                .limit(limit)
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def list_job_attempts(self, job_id: str) -> list[dict[str, Any]]:
+        with self.engine.connect() as connection:
+            rows = connection.execute(
+                select(job_attempts_table)
+                .where(job_attempts_table.c.job_id == job_id)
+                .order_by(job_attempts_table.c.attempt_number.asc())
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def list_job_events(self, job_id: str) -> list[dict[str, Any]]:
+        with self.engine.connect() as connection:
+            rows = connection.execute(
+                select(events_table)
+                .where(events_table.c.job_id == job_id)
+                .order_by(events_table.c.occurred_at.asc())
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def list_webhook_deliveries(self, event_ids: list[str]) -> list[dict[str, Any]]:
+        if not event_ids:
+            return []
+        with self.engine.connect() as connection:
+            rows = connection.execute(
+                select(webhook_deliveries_table)
+                .where(webhook_deliveries_table.c.event_id.in_(event_ids))
+                .order_by(webhook_deliveries_table.c.started_at.asc())
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def get_job_diagnostics(self, job_id: str) -> dict[str, Any]:
+        attempts = self.list_job_attempts(job_id)
+        events = self.list_job_events(job_id)
+        deliveries = self.list_webhook_deliveries(
+            [str(event["event_id"]) for event in events]
+        )
+        return {
+            "attempts": attempts,
+            "events": events,
+            "webhook_deliveries": deliveries,
+        }
+
     def claim_job(self, job_id: str) -> dict[str, Any] | None:
         now = utc_now()
         with self.engine.begin() as connection:

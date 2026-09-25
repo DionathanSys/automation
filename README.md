@@ -68,6 +68,7 @@ Collectors registrados:
 
 - `site_alpha_monitoring_trips`
 - `site_alpha_daily_trip_summary`
+- `daily_trip_summary`
 - `site_alpha_closed_trips`
 - `sascar_daily_movement`
 - `sascar_traveled_distance`
@@ -80,6 +81,11 @@ da data inicial. Depois, o collector mantem somente registros cujo `ended_at`
 esteja dentro do periodo solicitado. Essa sobreposicao captura viagens longas
 que comecaram antes, mas terminaram no periodo.
 
+O collector `daily_trip_summary` recebe `parameters.date` e retorna uma viagem
+por registro com `numero_viagem`, `placa`, `cliente`, `destino`, `km_rodado`,
+`km_pago`, `data_competencia`, `data_inicio`, `data_fim`,
+`possui_pendencia`, `pendencias` e `motoristas`.
+
 ## API
 
 Endpoints principais:
@@ -88,7 +94,9 @@ Endpoints principais:
 GET  /health
 GET  /ready
 POST /api/v1/jobs
+GET  /api/v1/jobs
 GET  /api/v1/jobs/{job_id}
+GET  /api/v1/jobs/{job_id}/diagnostics
 GET  /api/v1/jobs/{job_id}/result
 POST /api/v1/jobs/{job_id}/cancel
 POST /api/v1/jobs/{job_id}/retry
@@ -126,6 +134,23 @@ alembic check
 O cliente configurado por `AUTOMATION_CLIENT_ID` e
 `AUTOMATION_CLIENT_SECRET` e criado automaticamente durante a inicializacao
 do banco operacional.
+
+## Diagnostico operacional
+
+O Filament pode listar jobs com `GET /api/v1/jobs` e consultar o detalhe
+completo de uma execucao em `GET /api/v1/jobs/{job_id}/diagnostics`. O detalhe
+inclui parametros recebidos, tentativas do worker, erros, eventos e tentativas
+de webhook.
+
+Na VPS, os mesmos dados podem ser consultados diretamente:
+
+```bash
+.venv/bin/python runner.py --list-jobs --limit 20
+.venv/bin/python runner.py --watch-job JOB_ID
+.venv/bin/python runner.py --inspect-job JOB_ID
+sudo journalctl -fu automation-api
+sudo journalctl -fu automation-worker
+```
 
 ## Estrutura
 

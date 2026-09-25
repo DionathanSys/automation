@@ -180,12 +180,38 @@ def create_app(
             content={"data": _serialize_job(job)},
         )
 
+    @app.get("/api/v1/jobs")
+    def list_jobs(
+        status_filter: str | None = Query(default=None, alias="status"),
+        collector: str | None = Query(default=None),
+        limit: int = Query(default=50, ge=1, le=100),
+        client: dict[str, Any] = Depends(authenticated_client("jobs:read")),
+    ) -> dict[str, Any]:
+        jobs = job_service.list_jobs(client, status_filter, collector, limit)
+        return {
+            "data": [_serialize_job(job) for job in jobs],
+            "meta": {
+                "count": len(jobs),
+                "limit": limit,
+                "status": status_filter,
+                "collector": collector,
+            },
+        }
+
     @app.get("/api/v1/jobs/{job_id}")
     def get_job(
         job_id: str,
         client: dict[str, Any] = Depends(authenticated_client("jobs:read")),
     ) -> dict[str, Any]:
         return {"data": _serialize_job(job_service.get_job(client, job_id))}
+
+    @app.get("/api/v1/jobs/{job_id}/diagnostics")
+    def get_job_diagnostics(
+        job_id: str,
+        client: dict[str, Any] = Depends(authenticated_client("jobs:read")),
+    ) -> dict[str, Any]:
+        diagnostics = job_service.get_diagnostics(client, job_id)
+        return {"data": _serialize_diagnostics(diagnostics)}
 
     @app.get("/api/v1/jobs/{job_id}/result")
     def get_job_result(
@@ -243,7 +269,7 @@ def create_app(
                 "max_concurrency": definition.max_concurrency,
             }
             for definition in COLLECTOR_REGISTRY.values()
-            if not allowed or "*" in allowed or definition.name in allowed
+            if "*" in allowed or definition.name in allowed
         ]
         return {"data": definitions}
 
@@ -338,3 +364,37 @@ def _serialize_job(job: dict[str, Any]) -> dict[str, Any]:
         "requested_by": job.get("requested_by"),
         "error": error,
     }
+
+
+def _serialize_diagnostics(diagnostics: dict[str, Any]) -> dict[str, Any]:
+    job = diagnostics["job"]
+    serialized_job = _serialize_job(job)
+    serialized_job.update(
+        {
+            "parameters": _serialize_value(job.get("parameters_json") or {}),
+            "metadata": _serialize_value(job.get("metadata_json") or {}),
+            "idempotency_key": job.get("idempotency_key"),
+            "cancellation_requested": bool(job.get("cancellation_requested")),
+            "result_count": job.get("result_count"),
+            "result_checksum": job.get("result_checksum"),
+            "retry_of_job_id": job.get("retry_of_job_id"),
+        }
+    )
+    return {
+        "job": serialized_job,
+        "attempts": [_serialize_value(row) for row in diagnostics["attempts"]],
+        "events": [_serialize_value(row) for row in diagnostics["events"]],
+        "webhook_deliveries": [
+            _serialize_value(row) for row in diagnostics["webhook_deliveries"]
+        ],
+    }
+
+
+def _serialize_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat() + "Z"
+    if isinstance(value, dict):
+        return {str(key): _serialize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(item) for item in value]
+    return value

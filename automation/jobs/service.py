@@ -138,6 +138,28 @@ class JobService:
             raise JobServiceError("JOB_NOT_FOUND", "Job nao encontrado.", 404)
         return job
 
+    def list_jobs(
+        self,
+        client: dict[str, Any],
+        status: str | None,
+        collector: str | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        bounded_limit = min(max(limit, 1), 100)
+        return self.repository.list_jobs(
+            str(client["id"]),
+            status=status,
+            collector=collector,
+            limit=bounded_limit,
+        )
+
+    def get_diagnostics(self, client: dict[str, Any], job_id: str) -> dict[str, Any]:
+        job = self.get_job(client, job_id)
+        return {
+            "job": job,
+            **self.repository.get_job_diagnostics(job_id),
+        }
+
     def cancel_job(self, client: dict[str, Any], job_id: str) -> dict[str, Any]:
         job = self.repository.get_job(job_id, str(client["id"]))
         if job is None:
@@ -212,7 +234,7 @@ class JobService:
     @staticmethod
     def _ensure_collector_allowed(client: dict[str, Any], collector_name: str) -> None:
         allowed = set(client.get("allowed_collectors") or [])
-        if allowed and "*" not in allowed and collector_name not in allowed:
+        if "*" not in allowed and collector_name not in allowed:
             raise JobServiceError("CLIENT_FORBIDDEN", "Collector nao permitido para o cliente.", 403)
 
     @staticmethod

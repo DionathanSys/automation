@@ -1,6 +1,7 @@
 import unittest
 from datetime import date, datetime
 
+from automation.collectors.daily_trip_summary import DailyTripSummaryCollector
 from automation.collectors.site_alpha_closed_trips import SiteAlphaClosedTripsCollector
 
 
@@ -80,6 +81,43 @@ class SiteAlphaClosedTripsCollectorTest(unittest.TestCase):
         self.assertEqual(
             {"start_date": "11/08/2026", "end_date": "14/08/2026"},
             session.filters,
+        )
+
+
+class DailyTripSummaryCollectorTest(unittest.TestCase):
+    def test_maps_closed_trip_to_laravel_contract(self) -> None:
+        row = {
+            "external_id": "site_alpha:closed_trip:123",
+            "trip_number": "123",
+            "plate": "ABC1D23",
+            "destination": "Destino X",
+            "driven_km": 119.8,
+            "suggested_km": 120.5,
+            "started_at": datetime(2026, 9, 19, 8, 0),
+            "ended_at": datetime(2026, 9, 19, 12, 30),
+            "driver_1": "Motorista 1",
+            "driver_2": "Motorista 2",
+        }
+
+        payload = DailyTripSummaryCollector._normalize_row(row)
+
+        self.assertEqual(
+            {
+                "external_id": "site_alpha:closed_trip:123",
+                "numero_viagem": "123",
+                "placa": "ABC1D23",
+                "cliente": "Destino X",
+                "destino": "Destino X",
+                "km_rodado": 119.8,
+                "km_pago": 120.5,
+                "data_competencia": "2026-09-19",
+                "data_inicio": "2026-09-19 08:00:00",
+                "data_fim": "2026-09-19 12:30:00",
+                "possui_pendencia": False,
+                "pendencias": [],
+                "motoristas": ["Motorista 1", "Motorista 2"],
+            },
+            payload,
         )
 
 
