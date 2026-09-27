@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from urllib import error, parse, request
@@ -60,6 +61,13 @@ class WebhookService:
             path_with_query = f"{path_with_query}?{parsed_url.query}"
         timestamp = str(int(time.time()))
         nonce = uuid4().hex
+        canonical = HmacSigner.canonical_string(
+            "POST",
+            path_with_query,
+            timestamp,
+            nonce,
+            body,
+        )
         signature = HmacSigner.sign(
             settings.automation.webhook_secret,
             "POST",
@@ -100,6 +108,17 @@ class WebhookService:
                 None,
             )
             return
+
+        logger.warning(
+            "Webhook rejeitado pelo destino. event_id=%s request_id=%s status=%s path=%s body_sha256=%s canonical_sha256=%s signature_length=%s",
+            event_id,
+            headers["X-Request-ID"],
+            http_status,
+            path_with_query,
+            hashlib.sha256(body).hexdigest(),
+            hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            len(signature),
+        )
 
         retryable = http_status is None or http_status in {408, 425, 429} or http_status >= 500
         if retryable and attempt_number <= len(RETRY_DELAYS_SECONDS):

@@ -7,7 +7,7 @@ para iniciar coletas.
 ## Premissas
 
 - Ubuntu ou Debian com Python 3, MySQL e Redis acessiveis.
-- Repositorio em `/opt/automation`.
+- Repositorio em `/srv/apps/python/automation`.
 - Credenciais reais armazenadas somente no `.env` da VPS.
 - Acesso de rede aos portais Softlog e Sascar.
 
@@ -16,9 +16,9 @@ para iniciar coletas.
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip
-sudo mkdir -p /opt/automation
-sudo chown "$USER":"$USER" /opt/automation
-cd /opt/automation
+sudo mkdir -p /srv/apps/python/automation
+sudo chown "$USER":"$USER" /srv/apps/python/automation
+cd /srv/apps/python/automation
 git clone URL_DO_REPOSITORIO .
 cp .env.example .env
 chmod 600 .env
@@ -31,7 +31,7 @@ HMAC da integracao. Use `SITE_SOFTLOG_*` para o Softlog. Nao adicione variaveis
 Depois de preencher o `.env`, execute o atualizador versionado:
 
 ```bash
-cd /opt/automation
+cd /srv/apps/python/automation
 ./update-vps.sh
 ```
 
@@ -54,7 +54,7 @@ curl http://127.0.0.1:8000/ready
 O `job_id` retornado pelo Filament pode ser acompanhado diretamente na VPS:
 
 ```bash
-cd /opt/automation
+cd /srv/apps/python/automation
 .venv/bin/python runner.py --watch-job JOB_ID
 .venv/bin/python runner.py --inspect-job JOB_ID
 sudo journalctl -fu automation-api
@@ -70,7 +70,7 @@ entregas de webhook. Esses endpoints usam a mesma autenticacao HMAC.
 Antes de atualizar, confirme que o `.env` local nao sera alterado pelo Git:
 
 ```bash
-cd /opt/automation
+cd /srv/apps/python/automation
 ./update-vps.sh
 ```
 

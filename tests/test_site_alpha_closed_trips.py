@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from automation.collectors.daily_trip_summary import DailyTripSummaryCollector
 from automation.collectors.site_alpha_closed_trips import SiteAlphaClosedTripsCollector
+from automation.sites.site_alpha import SiteAlpha
 
 
 class FakeSiteSession:
@@ -139,6 +140,21 @@ class DailyTripSummaryCollectorTest(unittest.TestCase):
             progress_callback=None,
             cancellation_check=None,
         )
+
+
+class SiteAlphaDateNormalizationTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.site = object.__new__(SiteAlpha)
+
+    def test_normalizes_brazilian_datetime_string(self) -> None:
+        normalized = self.site._normalize_datetime_value("21/09/2026 14:30:00")
+
+        self.assertEqual(datetime(2026, 9, 21, 14, 30), normalized)
+
+    def test_preserves_naive_datetime(self) -> None:
+        value = datetime(2026, 9, 21, 14, 30)
+
+        self.assertEqual(value, self.site._normalize_datetime_value(value))
 
 
 if __name__ == "__main__":

@@ -9,9 +9,11 @@ from playwright.sync_api import sync_playwright
 from automation.config import settings
 from automation.services.collector import CollectorCancelled
 from automation.sites import SITE_REGISTRY
+from automation.utils.logger import get_logger
 
 
 SEARCH_OVERLAP_DAYS = 2
+logger = get_logger(__name__)
 
 
 class SiteAlphaClosedTripsCollector:
@@ -38,10 +40,14 @@ class SiteAlphaClosedTripsCollector:
                     "end_date": end_date.strftime("%d/%m/%Y"),
                 },
             )
-            rows = self._filter_rows(
-                site.extract_current_page("closed_trips"),
-                start_date,
-                end_date,
+            raw_rows = site.extract_current_page("closed_trips")
+            rows = self._filter_rows(raw_rows, start_date, end_date)
+            logger.info(
+                "Viagens encerradas extraidas: brutas=%d filtradas=%d periodo=%s..%s",
+                len(raw_rows),
+                len(rows),
+                start_date.isoformat(),
+                end_date.isoformat(),
             )
             collected_rows = [
                 self._normalize_row(row) for row in rows

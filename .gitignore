@@ -15,3 +15,8 @@ __pycache__/
 *.db
 
 logs/
+
+# Editor temporary files
+*.swp
+*.swo
+*~

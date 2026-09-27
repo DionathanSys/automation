@@ -546,12 +546,25 @@ class SiteAlpha(BaseHtmlTableSite):
 
     def _normalize_datetime_value(self, value: object) -> object:
         if isinstance(value, datetime):
+            if value.tzinfo is None:
+                return value
             return value.astimezone(self._timezone()).replace(tzinfo=None)
         if isinstance(value, str):
-            try:
-                parsed = datetime.fromisoformat(value)
-            except ValueError:
+            value = value.strip()
+            if not value:
                 return value
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                parsed = None
+                for pattern in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
+                    try:
+                        parsed = datetime.strptime(value, pattern)
+                        break
+                    except ValueError:
+                        continue
+                if parsed is None:
+                    return value
             if parsed.tzinfo is None:
                 return parsed
             return parsed.astimezone(self._timezone()).replace(tzinfo=None)
