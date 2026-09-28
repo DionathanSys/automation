@@ -53,7 +53,7 @@ def page(title: str, body: str) -> HTMLResponse:
     content = f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
 <title>{esc(title)} · Automation</title><style>{STYLE}</style></head><body>
-<header><nav><strong>Automation</strong><a href="/dashboard">Visão geral</a><a href="/dashboard/jobs">Jobs</a></nav></header>
+<header><nav><strong>Automation</strong><a href="/dashboard">Visão geral</a><a href="/dashboard/jobs">Jobs</a><a href="/dashboard/data/results">Banco de dados</a></nav></header>
 <main><h1>{esc(title)}</h1><p class="muted">Somente leitura · dados do MySQL e Redis · horários do banco em UTC</p>{body}</main></body></html>"""
     return HTMLResponse(content, headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"})
 
@@ -117,6 +117,29 @@ def install_dashboard(app, engine: Engine) -> None:
         return table(["Solicitado (UTC)", "Job", "Collector", "Status", "Resultados"], [
             [esc(row.requested_at), f'<a href="/dashboard/jobs/{quote(row.id, safe="")}"><code>{esc(row.id)}</code></a>', esc(row.collector), f'<span class="badge {esc(row.status)}">{esc(row.status)}</span>', esc(row.result_count)] for row in rows
         ])
+
+    # Explicit allowlist: no generic SQL endpoint and no client secret hashes or HMAC nonces.
+    datasets = {
+        "results": (job_results_table, ("job_id", "sequence", "record_count", "checksum", "created_at"), "created_at"),
+        "attempts": (job_attempts_table, ("job_id", "attempt_number", "worker_id", "status", "started_at", "finished_at", "error_code", "error_message"), "started_at"),
+        "events": (events_table, ("event_id", "job_id", "event_type", "occurred_at"), "occurred_at"),
+        "webhooks": (webhook_deliveries_table, ("event_id", "attempt_number", "status", "http_status", "next_attempt_at", "response_excerpt", "started_at"), "started_at"),
+    }
+
+    @router.get("/data/{dataset}", response_class=HTMLResponse)
+    def database_table(dataset: str, page_number: int = Query(1, ge=1, le=10000)) -> HTMLResponse:
+        if dataset not in datasets:
+            raise HTTPException(404, "Tabela nao disponivel")
+        source, columns, date_column = datasets[dataset]
+        with engine.connect() as db:
+            total = db.execute(select(func.count()).select_from(source)).scalar_one()
+            rows = db.execute(select(*(source.c[name] for name in columns)).order_by(source.c[date_column].desc(), source.c.id.desc() if "id" in source.c else source.c.event_id.desc()).offset((page_number - 1) * 50).limit(50)).mappings().all()
+        links = ' · '.join(f'<a href="/dashboard/data/{name}">{esc(name)}</a>' for name in datasets)
+        body = f'<p>{links}</p><p>{total} registros · página {page_number} · 50 por página</p>'
+        body += table(list(columns), [[esc(row[name]) for name in columns] for row in rows])
+        base = f'/dashboard/data/{dataset}?page_number='
+        body += '<div class="pages">' + (f'<a href="{base}{page_number-1}">← Anterior</a>' if page_number > 1 else '') + (f'<a href="{base}{page_number+1}">Próxima →</a>' if page_number * 50 < total else '') + '</div>'
+        return page(f"Banco · {dataset}", body)
 
     @router.get("/jobs", response_class=HTMLResponse)
     def jobs(status: str = "", collector: str = "", page_number: int = Query(1, ge=1, le=10000)) -> HTMLResponse:
