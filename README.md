@@ -173,7 +173,7 @@ autenticacao HTTP Basic envia a senha em cada requisicao. Use uma senha
 exclusiva, diferente dos segredos HMAC e das credenciais do MySQL.
 
 A interface mostra estados dos jobs, resultados efetivamente gravados no MySQL,
-parametros, tentativas, eventos e respostas de webhook. A lista de jobs tem
+parametros, tentativas, eventos e respostas de webhook. A aba Banco de dados\npermite consultar resultados, tentativas, eventos e entregas por tabela, sem SQL livre\nou dados de credenciais. A lista de jobs tem
 filtros e paginacao de 50; o detalhe mostra uma pagina de resultados por vez.
 O painel Redis lista as filas presentes no namespace configurado e mostra a
 quantidade de mensagens aguardando. Isso nao mede quantos workers estao vivos;
