@@ -12,6 +12,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Engine
 
 from automation.api_schemas import CreateJobRequest, PauseRequest, RetryJobRequest
+from automation.dashboard import install_dashboard
 from automation.config import settings
 from automation.db.automation_repository import AutomationRepository, new_id
 from automation.db.connection import create_mysql_engine
@@ -311,6 +312,7 @@ def create_app(
         job_service.set_system_mode(client, "RUNNING", None)
         return {"data": automation_repository.get_system_state()}
 
+    install_dashboard(app, engine)
     return app
 
 
