@@ -35,6 +35,8 @@ class DashboardTest(unittest.TestCase):
             self.assertIn("Visão geral", response.text)
             self.assertEqual("no-store", response.headers["cache-control"])
             self.assertEqual(200, client.get("/dashboard/jobs", auth=("reader", "secret")).status_code)
+            self.assertEqual(200, client.get("/dashboard/data/results", auth=("reader", "secret")).status_code)
+            self.assertEqual(404, client.get("/dashboard/data/automation_clients", auth=("reader", "secret")).status_code)
             self.assertEqual(404, client.get("/dashboard/jobs/missing", auth=("reader", "secret")).status_code)
             self.assertEqual(405, client.post("/dashboard/jobs", auth=("reader", "secret")).status_code)
 
