@@ -72,6 +72,8 @@ class SiteSascarConfig:
 class ApiConfig:
     host: str = os.getenv("API_HOST", "0.0.0.0")
     port: int = _get_int("API_PORT", 8000)
+    dashboard_username: str = os.getenv("DASHBOARD_USERNAME", "")
+    dashboard_password: str = os.getenv("DASHBOARD_PASSWORD", "")
 
 
 @dataclass(frozen=True)
